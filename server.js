@@ -5,6 +5,7 @@ TODOs
 =====
 * unit-testing (travis?)
 * jshint/lint
+* authentication
 
 Features
 ========
@@ -20,8 +21,16 @@ Features
 
 'use strict';
 
-var DEBUG = true;   // TODO: make configurable
-var LISTEN_PORT = 8080;  // TODO: make configurable
+// TODO: make configurable
+var DEBUG = true; 
+var LISTENPORT = 8080; 
+var WIKIDATA = '/tmp/wikidata';
+var CLIENTRESOURCES = {director: '/node_modules/director/build/director.min.js',
+                        jquery: '/lib/jquery-1.9.0.js',
+                        md_converter: '/node_modules/pagedown/Markdown.Converter.js',
+                        md_sanitizer: '/node_modules/pagedown/Markdown.Sanitizer.js',
+                        md_editor: '/lib/wmd-editor/Markdown.Editor.js',
+                        md_styles: '/lib/wmd-editor/wmd-styles.css'};
 
 require('domo').global(); 
 
@@ -29,7 +38,8 @@ var http = require('http'),
     pagedown = require('pagedown'),
 	filesystem = require('fs'),
 	mime = require('mime'),
-    director = require('director');
+    director = require('director'),
+    io = require('socket.io');
 
 
 /***********************************************************
@@ -37,7 +47,7 @@ var http = require('http'),
  **********************************************************/
 
 function send404(response) {
-        DEBUG && console.log('404 Not found!');
+        DEBUG && console.log('ERROR: 404 Not found!');
 
         response.writeHead(404, {
             'Content-Type': 'text/plain;charset="utf-8"'
@@ -47,7 +57,9 @@ function send404(response) {
 }
 
 function editorScript() {
-    return '\nvar edit = function () {\n' +
+    return 'var socket = io.connect("http://localhost:8080");\n\n' +
+
+           'var edit = function () {\n' +
            '    $("#wikieditor").append(\'' +
                 DIV(
                 DIV({'class': 'wmd-panel'},
@@ -70,6 +82,7 @@ function editorScript() {
            '};\n\n' + 
 
            'var cancel = function () {\n' + 
+           '    socket.emit("cancel", { my: "data" });\n' +
            '    $("#wikieditor").empty();\n' + 
            '};\n\n' + 
 
@@ -97,7 +110,7 @@ function getFile(prefix, path) {
 
         filesystem.readFile(filename, 'binary', function (err, file) {
             if (err) {
-                DEBUG && console.log('Error reading file: ' + err);
+                DEBUG && console.log('ERROR: Error occured reading file: ' + err);
 
                 that.res.writeHead(500, {
                     'Content-Type': 'text/plain;charset="utf-8"'
@@ -131,12 +144,13 @@ function getPage() {
             HEAD(
                 META({charset: 'utf-8'}),
                 TITLE('Wiki'),
-                LINK({rel: 'stylesheet', type: 'text/css', href: '/lib/wmd-editor/wmd-styles.css'}),
-                SCRIPT({src: '/lib/jquery-1.9.0.js'}),
-                SCRIPT({src: '/node_modules/director/build/director.min.js'}),
-                SCRIPT({src: '/node_modules/pagedown/Markdown.Converter.js'}),
-                SCRIPT({src: '/node_modules/pagedown/Markdown.Sanitizer.js'}),
-                SCRIPT({src: '/lib/wmd-editor/Markdown.Editor.js'}),
+                LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
+                SCRIPT({src: CLIENTRESOURCES.jquery}),
+                SCRIPT({src: CLIENTRESOURCES.director}),
+                SCRIPT({src: CLIENTRESOURCES.md_converter}),
+                SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
+                SCRIPT({src: CLIENTRESOURCES.md_editor}),
+                SCRIPT({src: '/socket.io/socket.io.js'}),
                 SCRIPT(editorScript())
             ),
             BODY(
@@ -194,4 +208,12 @@ var server = http.createServer(function(req, res) {
     });
 });
 
-server.listen(LISTEN_PORT);
+var ioListener = io.listen(server);
+server.listen(LISTENPORT);
+
+ioListener.sockets.on('connection', function (socket) {
+  socket.emit('news', { hello: 'world' });
+  socket.on('cancel', function (data) {
+    console.log('CANCEL: ' + data);
+  });
+});

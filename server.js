@@ -25,6 +25,7 @@ Features
 var DEBUG = true; 
 var LISTENPORT = 8080; 
 var WIKIDATA = '/tmp/wikidata';
+var PAGEPREFIX = '/page';
 var CLIENTRESOURCES = {director: '/node_modules/director/build/director.min.js',
                         jquery: '/lib/jquery-1.9.0.js',
                         md_converter: '/node_modules/pagedown/Markdown.Converter.js',
@@ -35,8 +36,9 @@ var CLIENTRESOURCES = {director: '/node_modules/director/build/director.min.js',
 require('domo').global(); 
 
 var http = require('http'),
-    pagedown = require('pagedown'),
 	filesystem = require('fs'),
+    url = require('url'),
+    pagedown = require('pagedown'),
 	mime = require('mime'),
     director = require('director'),
     io = require('socket.io');
@@ -59,7 +61,7 @@ function send404(response) {
 function editorScript() {
     return 'var socket = io.connect("http://localhost:8080");\n\n' +
 
-           'var edit = function () {\n' +
+           'var edit = function() {\n' +
            '    $("#wikieditor").append(\'' +
                 DIV(
                 DIV({'class': 'wmd-panel'},
@@ -77,11 +79,11 @@ function editorScript() {
            '    editor.run();\n' +
            '};\n\n' +
 
-           'var save = function () {\n' + 
+           'var save = function() {\n' + 
            '    $("#wikieditor").empty();\n' + 
            '};\n\n' + 
 
-           'var cancel = function () {\n' + 
+           'var cancel = function() {\n' + 
            '    socket.emit("cancel", { my: "data" });\n' +
            '    $("#wikieditor").empty();\n' + 
            '};\n\n' + 
@@ -96,20 +98,44 @@ function editorScript() {
            'router.init();\n';
 }
 
+function loadWikiPage(name, callback) {
+    var filename = WIKIDATA + '/' + name + '.md';
+
+    DEBUG && console.log('Loading page "' + filename + '"...');
+
+    filesystem.exists(filename, function(exists) {
+        if(!exists) {
+            DEBUG && console.log('ERROR: Page "' + name + '" does not exist!');
+            callback(true, [0, 'Page "' + name + '" does not exist!']);
+            return;
+        }
+
+        filesystem.readFile(filename, 'utf8', function(err, file) {
+            if(err) {
+                DEBUG && console.log('ERROR: Error occured while loading page: ' + err);
+                callback(true, [1, 'Error occured while loading page!', err]);
+                return;
+            }
+
+            callback(false, file);
+        });
+    });
+}
+
 function getFile(prefix, path) {
     var filename = prefix + '/' + path;    // TODO workaround for not working regexp in director/route...
 
     DEBUG && console.log('Routed into getFile("' + filename + '")');
 
     var that = this;
-    filesystem.exists(filename, function (exists) {
-        if (!exists) {
+    filesystem.exists(filename, function(exists) {
+        if(!exists) {
             send404(that.res);
             return;
         }
 
-        filesystem.readFile(filename, 'binary', function (err, file) {
-            if (err) {
+        filesystem.readFile(filename, 'binary', function(err, file) {
+            if(err) {
                 DEBUG && console.log('ERROR: Error occured reading file: ' + err);
 
                 that.res.writeHead(500, {
@@ -133,40 +159,49 @@ function getFile(prefix, path) {
 function getPage() {
     DEBUG && console.log('Routed into getPage()');
 
-    var converter = pagedown.getSanitizingConverter(); // or: new pagedown.Converter();
-    var output = converter.makeHtml('*Hello World*');
+    var page = url.parse(this.req.url).pathname.replace(PAGEPREFIX + '/','');
+    var that = this;
 
-    this.res.writeHead(200, {'Content-Type': 'text/html'})
-    this.res.end(
+    loadWikiPage(page, function(err, page) {
+        var pagecontent = '';
 
-    DOCUMENT(
-        HTML({lang: 'en'},
-            HEAD(
-                META({charset: 'utf-8'}),
-                TITLE('Wiki'),
-                LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
-                SCRIPT({src: CLIENTRESOURCES.jquery}),
-                SCRIPT({src: CLIENTRESOURCES.director}),
-                SCRIPT({src: CLIENTRESOURCES.md_converter}),
-                SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
-                SCRIPT({src: CLIENTRESOURCES.md_editor}),
-                SCRIPT({src: '/socket.io/socket.io.js'}),
-                SCRIPT(editorScript())
-            ),
-            BODY(
-                DIV({id: 'header'},
-                    DIV({id: 'title'}, 'Wiki...'),
-                    DIV({id: 'navi'}, 
-                        A({href: '#/edit'}, 'Edit page')
+        if(err) {
+            pagecontent = '<div id="errormessage">' + page[1] + '</div>';
+        }
+        else {
+            pagecontent = pagedown.getSanitizingConverter().makeHtml(page); // or: new pagedown.Converter();
+        }
+
+        that.res.writeHead(200, {'Content-Type': 'text/html'})
+        that.res.end(
+            DOCUMENT(
+                HTML({lang: 'en'},
+                    HEAD(
+                        META({charset: 'utf-8'}),
+                        TITLE('Wiki'),
+                        LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
+                        SCRIPT({src: CLIENTRESOURCES.jquery}),
+                        SCRIPT({src: CLIENTRESOURCES.director}),
+                        SCRIPT({src: CLIENTRESOURCES.md_converter}),
+                        SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
+                        SCRIPT({src: CLIENTRESOURCES.md_editor}),
+                        SCRIPT({src: '/socket.io/socket.io.js'}),
+                        SCRIPT(editorScript())
+                    ),
+                    BODY(
+                        DIV({id: 'header'},
+                            DIV({id: 'title'}, 'Wiki...'),
+                            DIV({id: 'navi'}, 
+                                A({href: '#/edit'}, 'Edit page')
+                            )
+                        ),
+                        DIV({id: 'wikieditor'}),
+                        DIV({id: 'wikicontent'}, '%#%MARKDOWN%#%')
                     )
-                ),
-                DIV({id: 'wikieditor'}),
-                DIV({id: 'wikicontent'}, '%#%MARKDOWN%#%')
-            )
+                )
+            ).outerHTML.replace('%#%MARKDOWN%#%', pagecontent)
         )
-    ).outerHTML.replace('%#%MARKDOWN%#%',output)
-
-  )
+    });
 }
 
 
@@ -181,7 +216,7 @@ var route = {
     '/(node_modules)/(.*)': {
         get:  getFile
     },
-    '/page': {
+    PAGEPREFIX: {
         '/(.+)': {
             get: getPage
         }
@@ -202,7 +237,7 @@ var server = http.createServer(function(req, res) {
     DEBUG && console.log('New request for URL ' + req.url);
 
     router.dispatch(req, res, function(err) {
-        if (err) {
+        if(err) {
             send404(res);
         }
     });
@@ -211,9 +246,9 @@ var server = http.createServer(function(req, res) {
 var ioListener = io.listen(server);
 server.listen(LISTENPORT);
 
-ioListener.sockets.on('connection', function (socket) {
+ioListener.sockets.on('connection', function(socket) {
   socket.emit('news', { hello: 'world' });
-  socket.on('cancel', function (data) {
+  socket.on('cancel', function(data) {
     console.log('CANCEL: ' + data);
   });
 });

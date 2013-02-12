@@ -14,7 +14,7 @@ Features
 */
 
 /*jshint node:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, regexp:true, undef:true, unused: true, trailing:true */
-/*global DOCUMENT:true, HTML:true, HEAD:true, BODY:true, META:true, TITLE:true, LINK:true, SCRIPT:true, A:true, TEXTAREA:true, DIV:true */
+/*global DOCUMENT:true, HTML:true, HEAD:true, BODY:true, META:true, TITLE:true, LINK:true, SCRIPT:true, A:true, DIV:true */
 
 
 /***********************************************************
@@ -28,12 +28,14 @@ var DEBUG = true;
 var LISTENPORT = 8080;
 var WIKIDATA = '/tmp/wikidata';
 var PAGEPREFIX = '/page';
-var CLIENTRESOURCES = {director: '/node_modules/director/build/director.min.js',
-                        jquery: '/lib/jquery-1.9.0.js',
+var CLIENTRESOURCES = {domo: '/node_modules/domo/lib/domo.js',
+                        director: '/node_modules/director/build/director.min.js',
                         md_converter: '/node_modules/pagedown/Markdown.Converter.js',
                         md_sanitizer: '/node_modules/pagedown/Markdown.Sanitizer.js',
                         md_editor: '/lib/wmd-editor/Markdown.Editor.js',
-                        md_styles: '/lib/wmd-editor/wmd-styles.css'};
+                        md_styles: '/lib/wmd-editor/wmd-styles.css',
+                        jquery: '/lib/jquery-1.9.0.js',
+                        wikifunctions: '/static/wikifunctions.js'};
 
 require('domo').global();
 
@@ -60,50 +62,6 @@ function send404(response) {
   });
   response.write('404 Not found!\n');
   response.end();
-}
-
-function editorScript() {
-  return 'var socket = io.connect("http://localhost:8080");\n\n' +
-
-      'var edit = function () {\n' +
-      'HERE\n' + // TODO
-      '  $("#wikicontent").hide();\n' +
-      '  $("#wikieditor").append(\'' +
-        DIV(
-        DIV({'class': 'wmd-panel'},
-          DIV({id: 'wmd-button-bar'}),
-          TEXTAREA({'class': 'wmd-input', id: 'wmd-input'}, '%#%MARKDOWN%#%'),
-          DIV(
-            A({href: '#/save'}, 'Save'), ' | ',
-            A({href: '#/cancel'}, 'Cancel'))
-        ),
-        DIV({id: 'wmd-preview', 'class': 'wmd-panel wmd-preview'})) +
-      '\');\n' +
-
-      '  var converter = Markdown.getSanitizingConverter()\n' +
-      '  var editor = new Markdown.Editor(converter);\n' +
-      '  editor.run();\n' +
-      '};\n\n' +
-
-      'var save = function () {\n' +
-      '  $("#wikieditor").empty();\n' +
-      '  $("#wikicontent").show();\n' +
-      '};\n\n' +
-
-      'var cancel = function () {\n' +
-      '  socket.emit("cancel", { my: "data" });\n' +
-      '  $("#wikieditor").empty();\n' +
-      '  $("#wikicontent").show();\n' +
-      '};\n\n' +
-
-      'var routes = {\n' +
-      '  \'/edit\': edit,\n' +
-      '  \'/save\': save,\n' +
-      '  \'/cancel\': cancel\n' +
-      '};\n\n' +
-
-      'var router = Router(routes);\n' +
-      'router.init();\n';
 }
 
 function loadWikiPage(name, callback) {
@@ -200,13 +158,14 @@ function getPage() {
             META({charset: 'utf-8'}),
             TITLE('Wiki'),
             LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
-            SCRIPT({src: CLIENTRESOURCES.jquery}),
+            SCRIPT({src: CLIENTRESOURCES.domo}),
             SCRIPT({src: CLIENTRESOURCES.director}),
             SCRIPT({src: CLIENTRESOURCES.md_converter}),
             SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
             SCRIPT({src: CLIENTRESOURCES.md_editor}),
             SCRIPT({src: '/socket.io/socket.io.js'}),
-            SCRIPT(editorScript())
+            SCRIPT({src: CLIENTRESOURCES.jquery}),
+            SCRIPT({src: CLIENTRESOURCES.wikifunctions})
           ),
           BODY(
             DIV({id: 'header'},
@@ -230,6 +189,9 @@ function getPage() {
  **********************************************************/
 
 var route = {
+  '/(static)/(.*)': {
+    get:  getFile
+  },
   '/(lib)/(.*)': {
     get:  getFile
   },

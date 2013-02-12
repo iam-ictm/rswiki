@@ -3,15 +3,22 @@
 
 (function () {
   'use strict';
+
+  var pagename = 'main';
+
   var socket = io.connect('http://localhost:8080');
 
   var edit = function () {
+    socket.emit('editPrepare', {pagename: pagename});
+  };
+
+  var editStart = function (data) {
     $('#wikicontent').hide();
     $('#wikieditor').append(
       DIV(
-        DIV({'class': 'wmd-panel'},
-          DIV({id: 'wmd-button-bar'}),
-          TEXTAREA({'class': 'wmd-input', id: 'wmd-input'}),
+       DIV({'class': 'wmd-panel'},
+        DIV({id: 'wmd-button-bar'}),
+          TEXTAREA({'class': 'wmd-input', id: 'wmd-input'}, data.pagecontent),
           DIV(
             A({href: '#/save'}, 'Save'), ' | ',
             A({href: '#/cancel'}, 'Cancel'))
@@ -24,13 +31,27 @@
     editor.run();
   };
 
-  var save = function () {
+  var error = function (data) {
+    $('#wikicontent').empty();
+    $('#wikicontent').append(
+      DIV({id: 'wikierror'}, 'Something terribly failed: ' + data.error)
+    );
+  };
+
+  var pageSaved = function (data) {
+    // TODO reset location
     $('#wikieditor').empty();
+    $('#wikicontent').empty();
+    $('#wikicontent').append(Markdown.getSanitizingConverter().makeHtml(data.pagecontent));
     $('#wikicontent').show();
   };
 
+  var save = function () {
+    socket.emit('save', {pagename: pagename, markdown: $('#wmd-input').val()});
+  };
+
   var cancel = function () {
-    socket.emit('cancel', { my: 'data' });
+    // TODO reset location
     $('#wikieditor').empty();
     $('#wikicontent').show();
   };
@@ -43,4 +64,8 @@
 
   var router = new Router(routes);
   router.init();
+
+  socket.on('editStart', editStart);
+  socket.on('error', error);
+  socket.on('pageSaved', pageSaved);
 })();

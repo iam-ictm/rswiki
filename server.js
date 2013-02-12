@@ -2,9 +2,10 @@
 
 TODOs
 =====
-* unit-testing (travis?)
-* authentication
-* minify
+* TODO unit-testing (travis?)
+* TODO authentication (webid?)
+* TODO minify
+* TODO propper logging
 
 Features
 ========
@@ -76,7 +77,7 @@ function loadWikiPage(name, callback) {
       if (DEBUG) {
         console.log('ERROR: Page "' + name + '" does not exist!');
       }
-      callback(true, [0, 'Page "' + name + '" does not exist!']);
+      callback(true, 'Page "' + name + '" does not exist!');
       return;
     }
 
@@ -85,13 +86,33 @@ function loadWikiPage(name, callback) {
         if (DEBUG) {
           console.log('ERROR: Error occured while loading page: ' + err);
         }
-        callback(true, [1, 'Error occured while loading page!', err]);
+        callback(true, 'Error occured while loading page : ' + err);
         return;
       }
 
       callback(false, file);
     });
   });
+}
+
+function saveWikiPage(data, callback) {
+  var filename = WIKIDATA + '/' + data.pagename + '.md';
+
+  if (DEBUG) {
+    console.log('Saving page "' + filename + '"...');
+  }
+  
+  filesystem.writeFile(filename, data.markdown, 'utf8', function (err) {
+    if (err) {
+      if (DEBUG) {
+        console.log('ERROR: Error occured while saving page: ' + err);
+      }
+      callback(true, 'Error occured while saving page : ' + err);
+      return;
+    }
+  });
+
+  loadWikiPage(data.pagename, callback);
 }
 
 function getFile(prefix, path) {
@@ -144,7 +165,7 @@ function getPage() {
     var pagecontent = '';
 
     if (err) {
-      pagecontent = '<div id="errormessage">' + markdown[1] + '</div>';
+      pagecontent = '<div id="errormessage">' + markdown + '</div>';
     }
     else {
       pagecontent = pagedown.getSanitizingConverter().makeHtml(markdown); // or: new pagedown.Converter();
@@ -178,7 +199,7 @@ function getPage() {
             DIV({id: 'wikicontent'}, '%#%PAGECONTENT%#%')
           )
         )
-      ).outerHTML.replace('%#%PAGECONTENT%#%', pagecontent).replace('%#%MARKDOWN%#%', markdown.replace(/\n/g, '\\n'))
+      ).outerHTML.replace('%#%PAGECONTENT%#%', pagecontent)
     );
   });
 }
@@ -229,12 +250,51 @@ var server = http.createServer(function (req, res) {
   });
 });
 
-var ioListener = io.listen(server);
+var ioListener = io.listen(server, {log: false});
 server.listen(LISTENPORT);
 
 ioListener.sockets.on('connection', function (socket) {
-  socket.emit('news', { hello: 'world' });
-  socket.on('cancel', function (data) {
-    console.log('CANCEL: ' + data);
+  // anonymous functions for socket.io-events. TODO maybe use events instead of CSP?
+
+  // editPrepare-event
+  socket.on('editPrepare', function (data) {    // TODO check params, especially pagename
+    if (DEBUG) {
+      console.log('Received io event editPrepare for page "' + data.pagename + '".');
+    }
+    loadWikiPage(data.pagename, function (err, markdown) {
+      if (err) {
+        if (DEBUG) {
+          console.log('Emitting error, error occured: ' + markdown);
+        }
+        socket.emit('error', {pagename: data.pagename, error: markdown});
+      }
+      else {
+        if (DEBUG) {
+          console.log('Emitting editStart, sending markdown...');
+        }
+        socket.emit('editStart',  {pagename: data.pagename, pagecontent: markdown});
+      }
+    });
+  });
+
+  // save-event
+  socket.on('save', function (data) {    // TODO check params, especially pagename
+    if (DEBUG) {
+      console.log('Received io event save for page "' + data.pagename + '".');
+    }
+    saveWikiPage(data, function (err, markdown) {
+      if (err) {
+        if (DEBUG) {
+          console.log('Emitting error, error occured: ' + markdown);
+        }
+        socket.emit('error', {pagename: data.pagename, error: markdown});
+      }
+      else {
+        if (DEBUG) {
+          console.log('Emitting pageSaved, sending markdown...');
+        }
+        socket.emit('pageSaved',  {pagename: data.pagename, pagecontent: markdown});
+      }
+    });
   });
 });

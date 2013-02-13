@@ -42,103 +42,6 @@ var http = require('http'),
  * Function definitions
  **********************************************************/
 
-//////////////////// functions for router
-
-/*
- * Reads a file from the filesystem and sends it to the client, setting
- * content-type as determined by mime.lookup()
- */
-function rtr_getFile(prefix, path) {
-  var that = this;
-  var filename = prefix + '/' + path;  // TODO workaround for not working regexp in director/route...
-
-  if (DEBUG) {
-    console.log('Routed into rtr_getFile("' + filename + '")');
-  }
-
-  filesystem.exists(filename, function (exists) {
-    if (exists) {
-      filesystem.readFile(filename, 'binary', function (err, file) {
-        if (err) {
-          if (DEBUG) {
-            console.log('ERROR: Error occured reading file: ' + err);
-          }
-
-          that.res.writeHead(500, {
-            'Content-Type': 'text/plain;charset="utf-8"'
-          });
-          that.res.write(err + '\n');
-          that.res.end();
-        } else {
-          var type = mime.lookup(filename);
-          that.res.writeHead(200, {
-            'Content-Type': type
-          });
-          that.res.write(file, 'binary');
-          that.res.end();
-        }
-      });
-    } else {
-      send404(that.res);
-    }
-  });
-}
-
-/*
- * Creates the markup for a wikipage and fills it with the current content of
- * the specified page in WIKIDATA.
- */
-function rtr_getPage() {
-  var that = this;
-  var page = url.parse(this.req.url).pathname.replace(PAGEPREFIX + '/', '');
-
-  if (DEBUG) {
-    console.log('Routed into rtr_getPage()');
-  }
-
-  loadWikiPage(page, function (err, data) {
-    var pagecontent = '';
-
-    if (err) {
-      pagecontent = '<div id="wikierror">' + data + '</div>';
-    } else {
-      pagecontent = pagedown.getSanitizingConverter().makeHtml(data); // or: new pagedown.Converter();
-    }
-
-    that.res.writeHead(200, {'Content-Type': 'text/html'});
-    that.res.end(
-      DOCUMENT(
-        HTML({lang: 'en'},
-          HEAD(
-            META({charset: 'utf-8'}),
-            TITLE('Wiki'),
-            LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
-            SCRIPT({src: CLIENTRESOURCES.domo}),
-            SCRIPT({src: CLIENTRESOURCES.director}),
-            SCRIPT({src: CLIENTRESOURCES.md_converter}),
-            SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
-            SCRIPT({src: CLIENTRESOURCES.md_editor}),
-            SCRIPT({src: '/socket.io/socket.io.js'}),   // provided by io.listen(server...)
-            SCRIPT({src: CLIENTRESOURCES.jquery}),
-            SCRIPT({src: CLIENTRESOURCES.wikifunctions})
-          ),
-          BODY(
-            DIV({id: 'header'},
-              DIV({id: 'title'}, 'Wiki...'),
-              DIV({id: 'navi'},
-                A({id: 'editlink', href: '#/edit'}, 'Edit ' + page)
-              )
-            ),
-            DIV({id: 'wikieditor'}),
-            DIV({id: 'wikicontent'}, '%#%PAGECONTENT%#%')
-          )
-        )
-      ).outerHTML.replace('%#%PAGECONTENT%#%', pagecontent)
-    );
-  });
-}
-
-
 //////////////////// helper-functions
 
 /*
@@ -266,6 +169,102 @@ function send404(response) {
   });
   response.write('404 Not found!\n');
   response.end();
+}
+
+//////////////////// functions for router
+
+/*
+ * Reads a file from the filesystem and sends it to the client, setting
+ * content-type as determined by mime.lookup()
+ */
+function rtr_getFile(prefix, path) {
+  var that = this;
+  var filename = prefix + '/' + path;  // TODO workaround for not working regexp in director/route...
+
+  if (DEBUG) {
+    console.log('Routed into rtr_getFile("' + filename + '")');
+  }
+
+  filesystem.exists(filename, function (exists) {
+    if (exists) {
+      filesystem.readFile(filename, 'binary', function (err, file) {
+        if (err) {
+          if (DEBUG) {
+            console.log('ERROR: Error occured reading file: ' + err);
+          }
+
+          that.res.writeHead(500, {
+            'Content-Type': 'text/plain;charset="utf-8"'
+          });
+          that.res.write(err + '\n');
+          that.res.end();
+        } else {
+          var type = mime.lookup(filename);
+          that.res.writeHead(200, {
+            'Content-Type': type
+          });
+          that.res.write(file, 'binary');
+          that.res.end();
+        }
+      });
+    } else {
+      send404(that.res);
+    }
+  });
+}
+
+/*
+ * Creates the markup for a wikipage and fills it with the current content of
+ * the specified page in WIKIDATA.
+ */
+function rtr_getPage() {
+  var that = this;
+  var page = url.parse(this.req.url).pathname.replace(PAGEPREFIX + '/', '');
+
+  if (DEBUG) {
+    console.log('Routed into rtr_getPage()');
+  }
+
+  loadWikiPage(page, function (err, data) {
+    var pagecontent = '';
+
+    if (err) {
+      pagecontent = '<div id="wikierror">' + data + '</div>';
+    } else {
+      pagecontent = pagedown.getSanitizingConverter().makeHtml(data); // or: new pagedown.Converter();
+    }
+
+    that.res.writeHead(200, {'Content-Type': 'text/html'});
+    that.res.end(
+      DOCUMENT(
+        HTML({lang: 'en'},
+          HEAD(
+            META({charset: 'utf-8'}),
+            TITLE('Wiki'),
+            LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
+            SCRIPT({src: CLIENTRESOURCES.domo}),
+            SCRIPT({src: CLIENTRESOURCES.director}),
+            SCRIPT({src: CLIENTRESOURCES.md_converter}),
+            SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
+            SCRIPT({src: CLIENTRESOURCES.md_editor}),
+            SCRIPT({src: '/socket.io/socket.io.js'}),   // provided by io.listen(server...)
+            SCRIPT({src: CLIENTRESOURCES.jquery}),
+            SCRIPT({src: CLIENTRESOURCES.wikifunctions})
+          ),
+          BODY(
+            DIV({id: 'header'},
+              DIV({id: 'title'}, 'Wiki...'),
+              DIV({id: 'navi'},
+                A({id: 'editlink', href: '#/edit'}, 'Edit ' + page)
+              )
+            ),
+            DIV({id: 'wikieditor'}),
+            DIV({id: 'wikicontent'}, '%#%PAGECONTENT%#%')
+          )
+        )
+      ).outerHTML.replace('%#%PAGECONTENT%#%', pagecontent)
+    );
+  });
 }
 
 

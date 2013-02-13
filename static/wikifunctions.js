@@ -10,6 +10,7 @@ TODOs
 /*global document:true, window:true, io:true, Markdown:true, Router:true, A:true, TEXTAREA:true, DIV:true */
 
 $(document).ready(function () {
+//////////////////// definitions
 
   'use strict';
 

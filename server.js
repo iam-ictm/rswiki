@@ -45,6 +45,28 @@ var http = require('http'),
 //////////////////// helper-functions
 
 /*
+ * Helper for handling callbacks of repo.*
+ * Properly inform user via callback and return true/false for continuing or
+ * aborting the CSP.
+ */
+function gitSuccess(err, callback) {
+  if (err) {
+    if (DEBUG) {
+      console.log('ERROR: git error: ' + err);
+    }
+
+    if (callback) {
+      callback(true, 'Error occured while saving page : ' + err);
+    }
+
+    return false;
+  } else {
+    return true;
+  }
+}
+
+
+/*
  * Loads the contents of a wikipage (in markdown) from WIKIDATA
  */
 function loadWikiPage(name, callback) {
@@ -99,54 +121,25 @@ function saveWikiPage(data, callback) { // TODO implement deleting of page...
       var repo = new git.Repository(WIKIDATA);
       var gitfiles = [data.pagename + '.md'];
 
-      /*
-       * Helper for handling callbacks of repo.*
-       * Properly inform user via callback and return true/false for continuing or
-       * aborting the CSP.
-       */
-      var gitSuccess = function (err) {
-        if (err) {
-          if (DEBUG) {
-            console.log('ERROR: git error: ' + err);
-          }
-          callback(true, 'Error occured while saving page : ' + err);
-          return false;
-        } else {
-          return true;
-        }
-      };
-
-      /*
-       * Helper if things go wrong with git. Try to unstage file.
-       * NOTE: not sure if that works/helps, couldn't test...
-       */
-      var gitUnstage = function () {
-        repo.unstage(gitfiles, function (err) {
-          if (DEBUG) {
-            console.log('Tried to unstage, result: ' + err);  // dont bother user any further...
-          }
-        });
-      };
-
       git.config('user.name', data.user.name, function (err) {
-        if (gitSuccess(err)) {
+        if (gitSuccess(err, callback)) {
           git.config('user.email', data.user.email, function (err) {
-            if (gitSuccess(err)) {
+            if (gitSuccess(err, callback)) {
               repo.add(gitfiles, function (err) {
-                if (gitSuccess(err)) {
+                if (gitSuccess(err, callback)) {
                   repo.commit(data.changemessage, function (err) {
-                    if (gitSuccess(err)) {
+                    if (gitSuccess(err, callback)) {
                       if (DEBUG) {
-                        console.log('Successfully committed page "' + data.pagenamei + '"!');
+                        console.log('Successfully committed page "' + data.pagename + '"!');
                       }
                     } else {
-                      // repo.commit failed
-                      gitUnstage();
+                      gitSuccess('repo.commit failed', null);
+                      repo.unstage(gitfiles, gitSuccess);
                     }
                   });
                 } else {
-                  // repo.add failed
-                  gitUnstage();
+                  gitSuccess('repo.add failed', null);
+                  repo.unstage(gitfiles, gitSuccess);
                 }
               });
             }
@@ -159,6 +152,45 @@ function saveWikiPage(data, callback) { // TODO implement deleting of page...
   loadWikiPage(data.pagename, callback);    // reload page from storage and give it back to caller
 }
 
+/*
+ * Loads the contents of a wikipage (in markdown) from WIKIDATA
+ */
+function deleteWikiPage(data, callback) {
+  var repo = new git.Repository(WIKIDATA);
+  var gitfiles = [data.pagename + '.md'];
+
+  if (DEBUG) {
+    console.log('Deleting page "' + data.pagename + '"...');
+  }
+
+  git.config('user.name', data.user.name, function (err) {
+    if (gitSuccess(err, callback)) {
+      git.config('user.email', data.user.email, function (err) {
+        if (gitSuccess(err, callback)) {
+          repo.remove(gitfiles, function (err) {
+            if (gitSuccess(err, callback)) {
+              repo.commit(data.changemessage, function (err) {
+                if (gitSuccess(err, callback)) {
+                  if (DEBUG) {
+                    console.log('Successfully deleted page "' + data.pagename + '"!');
+                  }
+                } else {
+                  gitSuccess('repo.commit failed', null);
+                }
+              });
+            } else {
+              gitSuccess('repo.remove failed', null);
+            }
+          });
+        }
+      });
+    }
+  });
+}
+
+/*
+ * Send a proper 404-response...
+ */
 function send404(response) {
   if (DEBUG) {
     console.log('ERROR: 404 Not found!');
@@ -170,6 +202,7 @@ function send404(response) {
   response.write('404 Not found!\n');
   response.end();
 }
+
 
 //////////////////// functions for router
 
@@ -253,9 +286,10 @@ function rtr_getPage() {
           ),
           BODY(
             DIV({id: 'header'},
-              DIV({id: 'title'}, 'Wiki...'),
+              DIV({id: 'title'}, page),
               DIV({id: 'navi'},
-                A({id: 'editlink', href: '#/edit'}, 'Edit ' + page)
+                A({id: 'editlink', href: '#/edit'}, 'edit'), ' | ',
+                A({id: 'deletelink', href: '#/delete'}, 'delete')
               )
             ),
             DIV({id: 'wikieditor'}),
@@ -333,17 +367,17 @@ ioListener.sockets.on('connection', function (socket) {
       console.log('Received io event editPrepare for page "' + data.pagename + '".');
     }
 
-    loadWikiPage(data.pagename, function (err, markdown) {
+    loadWikiPage(data.pagename, function (err, data) {
       if (err) {
         if (DEBUG) {
-          console.log('Emitting error, error occured: ' + markdown);
+          console.log('Emitting error, error occured: ' + data);
         }
-        socket.emit('error', {pagename: data.pagename, error: markdown});
+        socket.emit('error', {pagename: data.pagename, error: data});
       } else {
         if (DEBUG) {
           console.log('Emitting editStart, sending markdown...');
         }
-        socket.emit('editStart',  {pagename: data.pagename, pagecontent: markdown});
+        socket.emit('editStart',  {pagename: data.pagename, pagecontent: data});
       }
     });
   });
@@ -357,17 +391,41 @@ ioListener.sockets.on('connection', function (socket) {
     data.user = {name: 'The Wiki', email: 'wiki@localhost'};  // TODO session-based credentials
     data.changemessage = 'Edited in wiki';  // TODO can asked from the user
 
-    saveWikiPage(data, function (err, markdown) {
+    saveWikiPage(data, function (err, data) {
       if (err) {
         if (DEBUG) {
-          console.log('Emitting error, error occured: ' + markdown);
+          console.log('Emitting error, error occured: ' + data);
         }
-        socket.emit('error', {pagename: data.pagename, error: markdown});
+        socket.emit('error', {pagename: data.pagename, error: data});
       } else {
         if (DEBUG) {
           console.log('Emitting pageSaved, sending markdown...');
         }
-        socket.emit('pageSaved',  {pagename: data.pagename, pagecontent: markdown});
+        socket.emit('pageSaved',  {pagename: data.pagename, pagecontent: data});
+      }
+    });
+  });
+
+  // delete-event
+  socket.on('delete', function (data) {    // TODO check params, especially pagename
+    if (DEBUG) {
+      console.log('Received io event delete for page "' + data.pagename + '".');
+    }
+
+    data.user = {name: 'The Wiki', email: 'wiki@localhost'};  // TODO session-based credentials
+    data.changemessage = 'Deleted in wiki';  // TODO can asked from the user
+
+    deleteWikiPage(data, function (err, data) {
+      if (err) {
+        if (DEBUG) {
+          console.log('Emitting error, error occured: ' + data);
+        }
+        socket.emit('error', {pagename: data.pagename, error: data});
+      } else {
+        if (DEBUG) {
+          console.log('Emitting pageDeleted...');
+        }
+        socket.emit('pageDeleted',  {pagename: data.pagename});
       }
     });
   });

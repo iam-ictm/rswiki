@@ -15,6 +15,20 @@ $(document).ready(function () {
   var pagename = window.location.pathname.match(/.*\/page\/(.*)/)[1];
 
 
+//////////////////// helper-functions
+
+  function switchEditMode() {
+    if ($('#wikicontent').text() == '%#%NEWPAGE%#%') {
+      $('#wikicontent').empty();
+      $('#editlink').text('create ' + pagename + '...');
+      $('#deletelink').hide();  // TODO also hide the |
+    } else {
+      $('#editlink').text('edit');
+      $('#deletelink').show();
+    }
+  }
+
+
 //////////////////// functions for router
 
   var rtr_edit = function () {
@@ -29,6 +43,10 @@ $(document).ready(function () {
     // TODO reset location
     $('#wikieditor').empty();
     $('#wikicontent').show();
+  };
+
+  var rtr_delete = function () {
+    socket.emit('delete', {pagename: pagename});
   };
 
 
@@ -51,8 +69,8 @@ $(document).ready(function () {
         DIV({id: 'wmd-button-bar'}),
           TEXTAREA({'class': 'wmd-input', id: 'wmd-input'}, pagecontent),
           DIV(
-            A({href: '#/save'}, 'Save'), ' | ',
-            A({href: '#/cancel'}, 'Cancel'))
+            A({href: '#/save'}, 'save'), ' | ',
+            A({href: '#/cancel'}, 'cancel'))
         ),
       DIV({id: 'wmd-preview', 'class': 'wmd-panel wmd-preview'}))
     );
@@ -71,24 +89,18 @@ $(document).ready(function () {
     switchEditMode();
   };
 
+  var io_pageDeleted = function (data) {
+    console.log('Gone it is...');     // TODO implement a message to the user
+  };
 
-//////////////////// helper-functions
-
-  function switchEditMode() {
-    if ($('#wikicontent').text() == '%#%NEWPAGE%#%') {
-      $('#wikicontent').empty();
-      $('#editlink').text('Create ' + pagename + '...');
-    } else {
-      $('#editlink').text('Edit ' + pagename);
-    }
-  }
 
 //////////////////// main script
 
   var routes = {
     '/edit': rtr_edit,
     '/save': rtr_save,
-    '/cancel': rtr_cancel
+    '/cancel': rtr_cancel,
+    '/delete': rtr_delete
   };
 
   var router = new Router(routes);
@@ -97,6 +109,7 @@ $(document).ready(function () {
   socket.on('error', io_error);
   socket.on('editStart', io_editStart);
   socket.on('pageSaved', io_pageSaved);
+  socket.on('pageDeleted', io_pageDeleted);
 
   switchEditMode();
 

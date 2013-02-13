@@ -2,6 +2,11 @@
 
 A wiki based on node.js and git. A better description as well as a name will follow...
 
+TODOs
+=====
+* package.js?
+* split up in multiple files
+
 Open questions
 ==============
 

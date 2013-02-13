@@ -1,18 +1,41 @@
 /*jshint jquery:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, regexp:true, undef:true, unused: true, trailing:true */
-/*global io:true, Markdown:true, Router:true, A:true, TEXTAREA:true, DIV:true */
+/*global document:true, window:true, io:true, Markdown:true, Router:true, A:true, TEXTAREA:true, DIV:true */
 
-(function () {
+$(document).ready(function () {
+
   'use strict';
 
-  var pagename = 'main';
-
   var socket = io.connect('http://localhost:8080');
+  var pagename = window.location.pathname.match(/.*\/page\/(.*)/)[1];
 
-  var edit = function () {
+
+//////////////////// functions for router
+
+  var rtr_edit = function () {
     socket.emit('editPrepare', {pagename: pagename});
   };
 
-  var editStart = function (data) {
+  var rtr_save = function () {
+    socket.emit('save', {pagename: pagename, markdown: $('#wmd-input').val()});
+  };
+
+  var rtr_cancel = function () {
+    // TODO reset location
+    $('#wikieditor').empty();
+    $('#wikicontent').show();
+  };
+
+
+//////////////////// socket.io-callbacks
+
+  var io_error = function (data) {
+    $('#wikicontent').empty();
+    $('#wikicontent').append(
+      DIV({id: 'wikierror'}, 'Something terribly failed: ' + data.error)
+    );
+  };
+
+  var io_editStart = function (data) {
     $('#wikicontent').hide();
     $('#wikieditor').append(
       DIV(
@@ -31,14 +54,7 @@
     editor.run();
   };
 
-  var error = function (data) {
-    $('#wikicontent').empty();
-    $('#wikicontent').append(
-      DIV({id: 'wikierror'}, 'Something terribly failed: ' + data.error)
-    );
-  };
-
-  var pageSaved = function (data) {
+  var io_pageSaved = function (data) {
     // TODO reset location
     $('#wikieditor').empty();
     $('#wikicontent').empty();
@@ -46,26 +62,20 @@
     $('#wikicontent').show();
   };
 
-  var save = function () {
-    socket.emit('save', {pagename: pagename, markdown: $('#wmd-input').val()});
-  };
 
-  var cancel = function () {
-    // TODO reset location
-    $('#wikieditor').empty();
-    $('#wikicontent').show();
-  };
+//////////////////// main script
 
   var routes = {
-    '/edit': edit,
-    '/save': save,
-    '/cancel': cancel
+    '/edit': rtr_edit,
+    '/save': rtr_save,
+    '/cancel': rtr_cancel
   };
 
   var router = new Router(routes);
   router.init();
 
-  socket.on('editStart', editStart);
-  socket.on('error', error);
-  socket.on('pageSaved', pageSaved);
-})();
+  socket.on('error', io_error);
+  socket.on('editStart', io_editStart);
+  socket.on('pageSaved', io_pageSaved);
+
+});

@@ -1,3 +1,11 @@
+/*
+
+TODOs
+=====
+* TODO add license/copyright
+
+*/
+
 /*jshint jquery:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, regexp:true, undef:true, unused: true, trailing:true */
 /*global document:true, window:true, io:true, Markdown:true, Router:true, A:true, TEXTAREA:true, DIV:true */
 

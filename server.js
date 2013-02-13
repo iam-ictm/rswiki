@@ -4,8 +4,10 @@ TODOs
 =====
 * TODO unit-testing (travis?)
 * TODO authentication (webid?)
-* TODO minify
 * TODO propper logging
+* TODO buildprocess including minimizing, linting, tag-generation
+* TODO synchronize writes/reads?
+* TODO use AJAX instead of websockets?
 
 Features
 ========
@@ -74,10 +76,13 @@ function loadWikiPage(name, callback) {
 
   filesystem.exists(filename, function (exists) {
     if (!exists) {
+      // not existing is not an error, returning a marker to indicate that...
+
       if (DEBUG) {
-        console.log('ERROR: Page "' + name + '" does not exist!');
+        console.log('Page does not exist, returning NEWPAGE-marker...');
       }
-      callback(true, 'Page "' + name + '" does not exist!');
+
+      callback(false, '%#%NEWPAGE%#%');
       return;
     }
 
@@ -96,6 +101,7 @@ function loadWikiPage(name, callback) {
 }
 
 function saveWikiPage(data, callback) {
+  // TODO implement deleting of page...
   var filename = WIKIDATA + '/' + data.pagename + '.md';
 
   if (DEBUG) {
@@ -192,7 +198,7 @@ function getPage() {
             DIV({id: 'header'},
               DIV({id: 'title'}, 'Wiki...'),
               DIV({id: 'navi'},
-                A({href: '#/edit'}, 'Edit page')
+                A({id: 'editlink', href: '#/edit'}, 'Edit ' + page)
               )
             ),
             DIV({id: 'wikieditor'}),

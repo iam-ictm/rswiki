@@ -36,12 +36,14 @@ $(document).ready(function () {
   };
 
   var io_editStart = function (data) {
+    var pagecontent = data.pagecontent == '%#%NEWPAGE%#%' ? '' : data.pagecontent;
+
     $('#wikicontent').hide();
     $('#wikieditor').append(
       DIV(
        DIV({'class': 'wmd-panel'},
         DIV({id: 'wmd-button-bar'}),
-          TEXTAREA({'class': 'wmd-input', id: 'wmd-input'}, data.pagecontent),
+          TEXTAREA({'class': 'wmd-input', id: 'wmd-input'}, pagecontent),
           DIV(
             A({href: '#/save'}, 'Save'), ' | ',
             A({href: '#/cancel'}, 'Cancel'))
@@ -60,8 +62,21 @@ $(document).ready(function () {
     $('#wikicontent').empty();
     $('#wikicontent').append(Markdown.getSanitizingConverter().makeHtml(data.pagecontent));
     $('#wikicontent').show();
+    switchEditMode();
   };
 
+
+//////////////////// helper-functions
+
+  function switchEditMode() {
+    if ($('#wikicontent').text() == '%#%NEWPAGE%#%') {
+      $('#wikicontent').empty();
+      $('#editlink').text('Create ' + pagename + '...');
+    }
+    else {
+      $('#editlink').text('Edit ' + pagename);
+    }
+  }
 
 //////////////////// main script
 
@@ -77,5 +92,7 @@ $(document).ready(function () {
   socket.on('error', io_error);
   socket.on('editStart', io_editStart);
   socket.on('pageSaved', io_pageSaved);
+
+  switchEditMode();
 
 });

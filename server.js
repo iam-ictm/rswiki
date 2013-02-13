@@ -8,6 +8,7 @@ TODOs
 * TODO buildprocess including minimizing, linting, tag-generation
 * TODO synchronize writes/reads?
 * TODO use AJAX instead of websockets?
+* TODO add license/copyright
 
 Features
 ========
@@ -55,17 +56,99 @@ var http = require('http'),
  Function definitions
  **********************************************************/
 
-function send404(response) {
+//////////////////// functions for router
+
+function rtr_getFile(prefix, path) {
+  var filename = prefix + '/' + path;  // TODO workaround for not working regexp in director/route...
+
   if (DEBUG) {
-    console.log('ERROR: 404 Not found!');
+    console.log('Routed into rtr_getFile("' + filename + '")');
   }
 
-  response.writeHead(404, {
-    'Content-Type': 'text/plain;charset="utf-8"'
+  var that = this;
+  filesystem.exists(filename, function (exists) {
+    if (!exists) {
+      send404(that.res);
+      return;
+    }
+
+    filesystem.readFile(filename, 'binary', function (err, file) {
+      if (err) {
+        if (DEBUG) {
+          console.log('ERROR: Error occured reading file: ' + err);
+        }
+
+        that.res.writeHead(500, {
+          'Content-Type': 'text/plain;charset="utf-8"'
+        });
+        that.res.write(err + '\n');
+        that.res.end();
+        return;
+      }
+
+      var type = mime.lookup(filename);
+      that.res.writeHead(200, {
+        'Content-Type': type
+      });
+      that.res.write(file, 'binary');
+      that.res.end();
+    });
   });
-  response.write('404 Not found!\n');
-  response.end();
 }
+
+function rtr_getPage() {
+  if (DEBUG) {
+    console.log('Routed into rtr_getPage()');
+  }
+
+  var page = url.parse(this.req.url).pathname.replace(PAGEPREFIX + '/', '');
+  var that = this;
+
+  loadWikiPage(page, function (err, markdown) {
+    var pagecontent = '';
+
+    if (err) {
+      pagecontent = '<div id="errormessage">' + markdown + '</div>';
+    }
+    else {
+      pagecontent = pagedown.getSanitizingConverter().makeHtml(markdown); // or: new pagedown.Converter();
+    }
+
+    that.res.writeHead(200, {'Content-Type': 'text/html'});
+    that.res.end(
+      DOCUMENT(
+        HTML({lang: 'en'},
+          HEAD(
+            META({charset: 'utf-8'}),
+            TITLE('Wiki'),
+            LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
+            SCRIPT({src: CLIENTRESOURCES.domo}),
+            SCRIPT({src: CLIENTRESOURCES.director}),
+            SCRIPT({src: CLIENTRESOURCES.md_converter}),
+            SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
+            SCRIPT({src: CLIENTRESOURCES.md_editor}),
+            SCRIPT({src: '/socket.io/socket.io.js'}),
+            SCRIPT({src: CLIENTRESOURCES.jquery}),
+            SCRIPT({src: CLIENTRESOURCES.wikifunctions})
+          ),
+          BODY(
+            DIV({id: 'header'},
+              DIV({id: 'title'}, 'Wiki...'),
+              DIV({id: 'navi'},
+                A({id: 'editlink', href: '#/edit'}, 'Edit ' + page)
+              )
+            ),
+            DIV({id: 'wikieditor'}),
+            DIV({id: 'wikicontent'}, '%#%PAGECONTENT%#%')
+          )
+        )
+      ).outerHTML.replace('%#%PAGECONTENT%#%', pagecontent)
+    );
+  });
+}
+
+
+//////////////////// helper-functions
 
 function loadWikiPage(name, callback) {
   var filename = WIKIDATA + '/' + name + '.md';
@@ -121,93 +204,16 @@ function saveWikiPage(data, callback) {
   loadWikiPage(data.pagename, callback);
 }
 
-function getFile(prefix, path) {
-  var filename = prefix + '/' + path;  // TODO workaround for not working regexp in director/route...
-
+function send404(response) {
   if (DEBUG) {
-    console.log('Routed into getFile("' + filename + '")');
+    console.log('ERROR: 404 Not found!');
   }
 
-  var that = this;
-  filesystem.exists(filename, function (exists) {
-    if (!exists) {
-      send404(that.res);
-      return;
-    }
-
-    filesystem.readFile(filename, 'binary', function (err, file) {
-      if (err) {
-        if (DEBUG) {
-          console.log('ERROR: Error occured reading file: ' + err);
-        }
-
-        that.res.writeHead(500, {
-          'Content-Type': 'text/plain;charset="utf-8"'
-        });
-        that.res.write(err + '\n');
-        that.res.end();
-        return;
-      }
-
-      var type = mime.lookup(filename);
-      that.res.writeHead(200, {
-        'Content-Type': type
-      });
-      that.res.write(file, 'binary');
-      that.res.end();
-    });
+  response.writeHead(404, {
+    'Content-Type': 'text/plain;charset="utf-8"'
   });
-}
-
-function getPage() {
-  if (DEBUG) {
-    console.log('Routed into getPage()');
-  }
-
-  var page = url.parse(this.req.url).pathname.replace(PAGEPREFIX + '/', '');
-  var that = this;
-
-  loadWikiPage(page, function (err, markdown) {
-    var pagecontent = '';
-
-    if (err) {
-      pagecontent = '<div id="errormessage">' + markdown + '</div>';
-    }
-    else {
-      pagecontent = pagedown.getSanitizingConverter().makeHtml(markdown); // or: new pagedown.Converter();
-    }
-
-    that.res.writeHead(200, {'Content-Type': 'text/html'});
-    that.res.end(
-      DOCUMENT(
-        HTML({lang: 'en'},
-          HEAD(
-            META({charset: 'utf-8'}),
-            TITLE('Wiki'),
-            LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
-            SCRIPT({src: CLIENTRESOURCES.domo}),
-            SCRIPT({src: CLIENTRESOURCES.director}),
-            SCRIPT({src: CLIENTRESOURCES.md_converter}),
-            SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
-            SCRIPT({src: CLIENTRESOURCES.md_editor}),
-            SCRIPT({src: '/socket.io/socket.io.js'}),
-            SCRIPT({src: CLIENTRESOURCES.jquery}),
-            SCRIPT({src: CLIENTRESOURCES.wikifunctions})
-          ),
-          BODY(
-            DIV({id: 'header'},
-              DIV({id: 'title'}, 'Wiki...'),
-              DIV({id: 'navi'},
-                A({id: 'editlink', href: '#/edit'}, 'Edit ' + page)
-              )
-            ),
-            DIV({id: 'wikieditor'}),
-            DIV({id: 'wikicontent'}, '%#%PAGECONTENT%#%')
-          )
-        )
-      ).outerHTML.replace('%#%PAGECONTENT%#%', pagecontent)
-    );
-  });
+  response.write('404 Not found!\n');
+  response.end();
 }
 
 
@@ -215,19 +221,20 @@ function getPage() {
  Main application
  **********************************************************/
 
+//////////////////// setup router
 var route = {
   '/(static)/(.*)': {
-    get:  getFile
+    get:  rtr_getFile
   },
   '/(lib)/(.*)': {
-    get:  getFile
+    get:  rtr_getFile
   },
   '/(node_modules)/(.*)': {
-    get:  getFile
+    get:  rtr_getFile
   },
   PAGEPREFIX: {
     '/(.+)': {
-      get: getPage
+      get: rtr_getPage
     }
   },
   '/': {
@@ -244,6 +251,9 @@ var route = {
 
 var router = new director.http.Router(route);
 
+
+//////////////////// setup server
+
 var server = http.createServer(function (req, res) {
   if (DEBUG) {
     console.log('New request for URL ' + req.url);
@@ -256,9 +266,12 @@ var server = http.createServer(function (req, res) {
   });
 });
 
-var ioListener = io.listen(server, {log: false});
 server.listen(LISTENPORT);
 
+
+//////////////////// setup socket.io-listener
+
+var ioListener = io.listen(server, {log: false});
 ioListener.sockets.on('connection', function (socket) {
   // anonymous functions for socket.io-events. TODO maybe use events instead of CSP?
 

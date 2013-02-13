@@ -1,34 +1,19 @@
 /*
-
-TODOs
-=====
-* TODO unit-testing (travis?)
-* TODO authentication (webid?)
-* TODO propper logging
-* TODO buildprocess including minimizing, linting, tag-generation
-* TODO synchronize writes/reads?
-* TODO use AJAX instead of websockets?
-* TODO add license/copyright
-
-Features
-========
-* Direkteingabe von HTML, Turtle
-* Komplett statischer Export
-
-*/
+ * TODO license/copyright
+ */
 
 /*jshint node:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, regexp:true, undef:true, unused: true, trailing:true */
 /*global DOCUMENT:true, HTML:true, HEAD:true, BODY:true, META:true, TITLE:true, LINK:true, SCRIPT:true, A:true, DIV:true */
 
 
 /***********************************************************
- Initialisation
+ * Initialisation
  **********************************************************/
 
 'use strict';
 
-// TODO: make configurable
-var DEBUG = true;
+// TODO: make options configurable
+var DEBUG = true;  // TODO use better logging-system
 var LISTENPORT = 8080;
 var WIKIDATA = '/tmp/wikidata';
 var PAGEPREFIX = '/page';
@@ -49,69 +34,75 @@ var http = require('http'),
   pagedown = require('pagedown'),
   mime = require('mime'),
   director = require('director'),
-  io = require('socket.io');
+  io = require('socket.io'),
+  git = require('gitty');
 
 
 /***********************************************************
- Function definitions
+ * Function definitions
  **********************************************************/
 
 //////////////////// functions for router
 
+/*
+ * Reads a file from the filesystem and sends it to the client, setting
+ * content-type as determined by mime.lookup()
+ */
 function rtr_getFile(prefix, path) {
+  var that = this;
   var filename = prefix + '/' + path;  // TODO workaround for not working regexp in director/route...
 
   if (DEBUG) {
     console.log('Routed into rtr_getFile("' + filename + '")');
   }
 
-  var that = this;
   filesystem.exists(filename, function (exists) {
-    if (!exists) {
-      send404(that.res);
-      return;
-    }
+    if (exists) {
+      filesystem.readFile(filename, 'binary', function (err, file) {
+        if (err) {
+          if (DEBUG) {
+            console.log('ERROR: Error occured reading file: ' + err);
+          }
 
-    filesystem.readFile(filename, 'binary', function (err, file) {
-      if (err) {
-        if (DEBUG) {
-          console.log('ERROR: Error occured reading file: ' + err);
+          that.res.writeHead(500, {
+            'Content-Type': 'text/plain;charset="utf-8"'
+          });
+          that.res.write(err + '\n');
+          that.res.end();
+        } else {
+          var type = mime.lookup(filename);
+          that.res.writeHead(200, {
+            'Content-Type': type
+          });
+          that.res.write(file, 'binary');
+          that.res.end();
         }
-
-        that.res.writeHead(500, {
-          'Content-Type': 'text/plain;charset="utf-8"'
-        });
-        that.res.write(err + '\n');
-        that.res.end();
-        return;
-      }
-
-      var type = mime.lookup(filename);
-      that.res.writeHead(200, {
-        'Content-Type': type
       });
-      that.res.write(file, 'binary');
-      that.res.end();
-    });
+    } else {
+      send404(that.res);
+    }
   });
 }
 
+/*
+ * Creates the markup for a wikipage and fills it with the current content of
+ * the specified page in WIKIDATA.
+ */
 function rtr_getPage() {
+  var that = this;
+  var page = url.parse(this.req.url).pathname.replace(PAGEPREFIX + '/', '');
+
   if (DEBUG) {
     console.log('Routed into rtr_getPage()');
   }
 
-  var page = url.parse(this.req.url).pathname.replace(PAGEPREFIX + '/', '');
-  var that = this;
-
-  loadWikiPage(page, function (err, markdown) {
+  loadWikiPage(page, function (err, data) {
     var pagecontent = '';
 
     if (err) {
-      pagecontent = '<div id="errormessage">' + markdown + '</div>';
-    }
-    else {
-      pagecontent = pagedown.getSanitizingConverter().makeHtml(markdown); // or: new pagedown.Converter();
+      pagecontent = '<div id="wikierror">' + data + '</div>';
+    } else {
+      pagecontent = pagedown.getSanitizingConverter().makeHtml(data); // or: new pagedown.Converter();
     }
 
     that.res.writeHead(200, {'Content-Type': 'text/html'});
@@ -127,7 +118,7 @@ function rtr_getPage() {
             SCRIPT({src: CLIENTRESOURCES.md_converter}),
             SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
             SCRIPT({src: CLIENTRESOURCES.md_editor}),
-            SCRIPT({src: '/socket.io/socket.io.js'}),
+            SCRIPT({src: '/socket.io/socket.io.js'}),   // provided by io.listen(server...)
             SCRIPT({src: CLIENTRESOURCES.jquery}),
             SCRIPT({src: CLIENTRESOURCES.wikifunctions})
           ),
@@ -150,6 +141,9 @@ function rtr_getPage() {
 
 //////////////////// helper-functions
 
+/*
+ * Loads the contents of a wikipage (in markdown) from WIKIDATA
+ */
 function loadWikiPage(name, callback) {
   var filename = WIKIDATA + '/' + name + '.md';
 
@@ -158,50 +152,108 @@ function loadWikiPage(name, callback) {
   }
 
   filesystem.exists(filename, function (exists) {
-    if (!exists) {
+    if (exists) {
+      filesystem.readFile(filename, 'utf8', function (err, file) {
+        if (err) {
+          if (DEBUG) {
+            console.log('ERROR: Error occured while loading page: ' + err);
+          }
+          callback(true, 'Error occured while loading page : ' + err);
+        } else {
+          callback(false, file);
+        }
+      });
+    } else {
       // not existing is not an error, returning a marker to indicate that...
 
       if (DEBUG) {
         console.log('Page does not exist, returning NEWPAGE-marker...');
       }
-
       callback(false, '%#%NEWPAGE%#%');
-      return;
     }
-
-    filesystem.readFile(filename, 'utf8', function (err, file) {
-      if (err) {
-        if (DEBUG) {
-          console.log('ERROR: Error occured while loading page: ' + err);
-        }
-        callback(true, 'Error occured while loading page : ' + err);
-        return;
-      }
-
-      callback(false, file);
-    });
   });
 }
 
-function saveWikiPage(data, callback) {
-  // TODO implement deleting of page...
+/*
+ * Saves the contents (markdown) of a wikipage to WIKIDATA and commits it
+ * in git.
+ */
+function saveWikiPage(data, callback) { // TODO implement deleting of page...
   var filename = WIKIDATA + '/' + data.pagename + '.md';
 
   if (DEBUG) {
     console.log('Saving page "' + filename + '"...');
   }
-  
+
+  // TODO synchronize the whole thing somehow?
   filesystem.writeFile(filename, data.markdown, 'utf8', function (err) {
     if (err) {
       if (DEBUG) {
         console.log('ERROR: Error occured while saving page: ' + err);
       }
       callback(true, 'Error occured while saving page : ' + err);
-      return;
+    } else {
+      var repo = new git.Repository(WIKIDATA);
+      var gitfiles = [data.pagename + '.md'];
+
+      /*
+       * Helper for handling callbacks of repo.*
+       * Properly inform user via callback and return true/false for continuing or
+       * aborting the CSP.
+       */
+      var gitSuccess = function (err) {
+        if (err) {
+          if (DEBUG) {
+            console.log('ERROR: git error: ' + err);
+          }
+          callback(true, 'Error occured while saving page : ' + err);
+          return false;
+        } else {
+          return true;
+        }
+      };
+
+      /*
+       * Helper if things go wrong with git. Try to unstage file.
+       * NOTE: not sure if that works/helps, couldn't test...
+       */
+      var gitUnstage = function () {
+        repo.unstage(gitfiles, function (err) {
+          if (DEBUG) {
+            console.log('Tried to unstage, result: ' + err);  // dont bother user any further...
+          }
+        });
+      };
+
+      git.config('user.name', data.user.name, function (err) {
+        if (gitSuccess(err)) {
+          git.config('user.email', data.user.email, function (err) {
+            if (gitSuccess(err)) {
+              repo.add(gitfiles, function (err) {
+                if (gitSuccess(err)) {
+                  repo.commit(data.changemessage, function (err) {
+                    if (gitSuccess(err)) {
+                      if (DEBUG) {
+                        console.log('Successfully committed page "' + data.pagenamei + '"!');
+                      }
+                    } else {
+                      // repo.commit failed
+                      gitUnstage();
+                    }
+                  });
+                } else {
+                  // repo.add failed
+                  gitUnstage();
+                }
+              });
+            }
+          });
+        }
+      });
     }
   });
 
-  loadWikiPage(data.pagename, callback);
+  loadWikiPage(data.pagename, callback);    // reload page from storage and give it back to caller
 }
 
 function send404(response) {
@@ -218,10 +270,11 @@ function send404(response) {
 
 
 /***********************************************************
- Main application
+ * Main application
  **********************************************************/
 
 //////////////////// setup router
+
 var route = {
   '/(static)/(.*)': {
     get:  rtr_getFile
@@ -280,14 +333,14 @@ ioListener.sockets.on('connection', function (socket) {
     if (DEBUG) {
       console.log('Received io event editPrepare for page "' + data.pagename + '".');
     }
+
     loadWikiPage(data.pagename, function (err, markdown) {
       if (err) {
         if (DEBUG) {
           console.log('Emitting error, error occured: ' + markdown);
         }
         socket.emit('error', {pagename: data.pagename, error: markdown});
-      }
-      else {
+      } else {
         if (DEBUG) {
           console.log('Emitting editStart, sending markdown...');
         }
@@ -301,14 +354,17 @@ ioListener.sockets.on('connection', function (socket) {
     if (DEBUG) {
       console.log('Received io event save for page "' + data.pagename + '".');
     }
+
+    data.user = {name: 'The Wiki', email: 'wiki@localhost'};  // TODO session-based credentials
+    data.changemessage = 'Edited in wiki';  // TODO can asked from the user
+
     saveWikiPage(data, function (err, markdown) {
       if (err) {
         if (DEBUG) {
           console.log('Emitting error, error occured: ' + markdown);
         }
         socket.emit('error', {pagename: data.pagename, error: markdown});
-      }
-      else {
+      } else {
         if (DEBUG) {
           console.log('Emitting pageSaved, sending markdown...');
         }

@@ -20,11 +20,11 @@ $(document).ready(function () {
   function switchEditMode() {
     if ($('#wikicontent').text() == '%#%NEWPAGE%#%') {
       $('#wikicontent').empty();
-      $('#editlink').text('create ' + pagename + '...');
-      $('#deletelink').hide();  // TODO also hide the |
+      $('#editbutton').text('create ' + pagename + '...');
+      $('#deletebutton').hide();  // TODO also hide the |
     } else {
-      $('#editlink').text('edit');
-      $('#deletelink').show();
+      $('#editbutton').text('edit');
+      $('#deletebutton').show();
     }
   }
 
@@ -89,10 +89,6 @@ $(document).ready(function () {
     switchEditMode();
   };
 
-  var io_pageDeleted = function (data) {
-    console.log('Gone it is...');     // TODO implement a message to the user
-  };
-
 
 //////////////////// main script
 
@@ -109,7 +105,6 @@ $(document).ready(function () {
   socket.on('error', io_error);
   socket.on('editStart', io_editStart);
   socket.on('pageSaved', io_pageSaved);
-  socket.on('pageDeleted', io_pageDeleted);
 
   switchEditMode();
 

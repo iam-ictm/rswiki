@@ -3,7 +3,7 @@
  */
 
 /*jshint node:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, regexp:true, undef:true, unused: true, trailing:true */
-/*global DOCUMENT:true, HTML:true, HEAD:true, BODY:true, META:true, TITLE:true, LINK:true, SCRIPT:true, A:true, DIV:true */
+/*global DOCUMENT:true, HTML:true, HEAD:true, BODY:true, META:true, TITLE:true, LINK:true, SCRIPT:true, A:true, DIV:true SPAN:true */
 
 
 /***********************************************************
@@ -156,6 +156,7 @@ function saveWikiPage(data, callback) { // TODO implement deleting of page...
  * Loads the contents of a wikipage (in markdown) from WIKIDATA
  */
 function deleteWikiPage(data, callback) {
+  var filename = WIKIDATA + '/' + data.pagename + '.md';
   var repo = new git.Repository(WIKIDATA);
   var gitfiles = [data.pagename + '.md'];
 
@@ -171,9 +172,19 @@ function deleteWikiPage(data, callback) {
             if (gitSuccess(err, callback)) {
               repo.commit(data.changemessage, function (err) {
                 if (gitSuccess(err, callback)) {
-                  if (DEBUG) {
-                    console.log('Successfully deleted page "' + data.pagename + '"!');
-                  }
+                  filesystem.unlink(filename, function (err) {
+                    if (err) {
+                      if (DEBUG) {
+                        console.log('ERROR while deleting page: ' + err);
+                        callback(true, err);
+                      }
+                    } else {
+                      if (DEBUG) {
+                        console.log('Successfully deleted page "' + data.pagename + '"!');
+                        callback(false, null);
+                      }
+                    }
+                  });
                 } else {
                   gitSuccess('repo.commit failed', null);
                 }
@@ -288,8 +299,8 @@ function rtr_getPage() {
             DIV({id: 'header'},
               DIV({id: 'title'}, page),
               DIV({id: 'navi'},
-                A({id: 'editlink', href: '#/edit'}, 'edit'), ' | ',
-                A({id: 'deletelink', href: '#/delete'}, 'delete')
+                A({id: 'editbutton', href: '#/edit'}, 'edit'),
+                SPAN({id: 'deletebutton'}, ' | ', A({href: '#/delete'}, 'delete'))
               )
             ),
             DIV({id: 'wikieditor'}),
@@ -415,17 +426,17 @@ ioListener.sockets.on('connection', function (socket) {
     data.user = {name: 'The Wiki', email: 'wiki@localhost'};  // TODO session-based credentials
     data.changemessage = 'Deleted in wiki';  // TODO can asked from the user
 
-    deleteWikiPage(data, function (err, data) {
+    deleteWikiPage(data, function (err, cbdata) {
       if (err) {
         if (DEBUG) {
-          console.log('Emitting error, error occured: ' + data);
+          console.log('Emitting error, error occured: ' + cbdata);
         }
-        socket.emit('error', {pagename: data.pagename, error: data});
+        socket.emit('error', {pagename: data.pagename, error: cbdata});
       } else {
         if (DEBUG) {
-          console.log('Emitting pageDeleted...');
+          console.log('Emitting pageSaved with NEWPAGE');
         }
-        socket.emit('pageDeleted',  {pagename: data.pagename});
+        socket.emit('pageSaved',  {pagename: data.pagename, pagecontent: '%#%NEWPAGE%#%'});
       }
     });
   });

@@ -18,7 +18,7 @@ $(document).ready(function () {
 //////////////////// helper-functions
 
   function switchEditMode() {
-    if ($('#wikicontent').text() == '%#%NEWPAGE%#%') {
+    if ($('#wikicontent').text() === '%#%NEWPAGE%#%') {
       $('#wikicontent').empty();
       $('#editbutton').text('create ' + pagename + '...');
       $('#deletebutton').hide();
@@ -60,7 +60,7 @@ $(document).ready(function () {
   };
 
   var io_editStart = function (data) {
-    var pagecontent = data.pagecontent == '%#%NEWPAGE%#%' ? '' : data.pagecontent;
+    var pagecontent = data.pagecontent === '%#%NEWPAGE%#%' ? '' : data.pagecontent;
 
     $('#wikicontent').hide();
     $('#wikieditor').append(

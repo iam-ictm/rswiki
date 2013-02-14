@@ -12,6 +12,7 @@ Open questions
 
 * Use AJAX instead of websockets?
 * buildprocess including minimizing, linting, tag-generation
+    * <http://blog.millermedeiros.com/node-js-as-a-build-script/>
 * unit-testing (travis?)
 * authentication (webid?)
 

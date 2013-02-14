@@ -21,7 +21,7 @@ $(document).ready(function () {
     if ($('#wikicontent').text() == '%#%NEWPAGE%#%') {
       $('#wikicontent').empty();
       $('#editbutton').text('create ' + pagename + '...');
-      $('#deletebutton').hide();  // TODO also hide the |
+      $('#deletebutton').hide();
     } else {
       $('#editbutton').text('edit');
       $('#deletebutton').show();

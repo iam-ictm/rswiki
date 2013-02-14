@@ -103,7 +103,7 @@ function loadWikiPage(name, callback) {
  * Saves the contents (markdown) of a wikipage to WIKIDATA and commits it
  * in git.
  */
-function saveWikiPage(data, callback) { // TODO implement deleting of page...
+function saveWikiPage(data, callback) {
   var filename = WIKIDATA + '/' + data.pagename + '.md';
 
   if (DEBUG) {

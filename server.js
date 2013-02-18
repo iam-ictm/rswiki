@@ -13,7 +13,7 @@
 'use strict';
 
 // TODO: make options configurable
-var DEBUG = true;  // TODO use better logging-system
+var DEBUG = true;  // TODO use better logging-system (https://github.com/trentm/node-bunyan maybe?)
 var LISTENPORT = 8080;
 var WIKIDATA = '/tmp/wikidata';
 var PAGEPREFIX = '/page';
@@ -69,7 +69,7 @@ function gitSuccess(err, callback) {
 /*
  * Loads the contents of a wikipage (in markdown) from WIKIDATA
  */
-function loadWikiPage(name, callback) {
+function loadWikiPage(name, callback) { // TODO use same input-structure as saveWikiPage() and deleteWikiPage(), document
   var filename = WIKIDATA + '/' + name + '.md';
 
   if (DEBUG) {
@@ -133,12 +133,12 @@ function saveWikiPage(data, callback) {
                         console.log('Successfully committed page "' + data.pagename + '"!');
                       }
                     } else {
-                      gitSuccess('repo.commit failed', null);
+                      gitSuccess('repo.commit failed', null); // TODO ugly
                       repo.unstage(gitfiles, gitSuccess);
                     }
                   });
                 } else {
-                  gitSuccess('repo.add failed', null);
+                  gitSuccess('repo.add failed', null); // TODO ugly
                   repo.unstage(gitfiles, gitSuccess);
                 }
               });
@@ -186,11 +186,11 @@ function deleteWikiPage(data, callback) {
                     }
                   });
                 } else {
-                  gitSuccess('repo.commit failed', null);
+                  gitSuccess('repo.commit failed', null); // TODO ugly
                 }
               });
             } else {
-              gitSuccess('repo.remove failed', null);
+              gitSuccess('repo.remove failed', null); // TODO ugly
             }
           });
 //        }

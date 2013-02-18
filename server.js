@@ -121,10 +121,10 @@ function saveWikiPage(data, callback) {
       var repo = new git.Repository(WIKIDATA);
       var gitfiles = [data.pagename + '.md'];
 
-      git.config('user.name', data.user.name, function (err) {
-        if (gitSuccess(err, callback)) {
-          git.config('user.email', data.user.email, function (err) {
-            if (gitSuccess(err, callback)) {
+//      git.config('user.name', data.user.name, function (err) {   // BUG overrides global config
+//        if (gitSuccess(err, callback)) {
+//          git.config('user.email', data.user.email, function (err) {
+//            if (gitSuccess(err, callback)) {
               repo.add(gitfiles, function (err) {
                 if (gitSuccess(err, callback)) {
                   repo.commit(data.changemessage, function (err) {
@@ -142,10 +142,10 @@ function saveWikiPage(data, callback) {
                   repo.unstage(gitfiles, gitSuccess);
                 }
               });
-            }
-          });
-        }
-      });
+//            }
+//          });
+//        }
+//      });
     }
   });
 
@@ -164,10 +164,10 @@ function deleteWikiPage(data, callback) {
     console.log('Deleting page "' + data.pagename + '"...');
   }
 
-  git.config('user.name', data.user.name, function (err) {
-    if (gitSuccess(err, callback)) {
-      git.config('user.email', data.user.email, function (err) {
-        if (gitSuccess(err, callback)) {
+//  git.config('user.name', data.user.name, function (err) {   // BUG overrides global config
+//    if (gitSuccess(err, callback)) {
+//      git.config('user.email', data.user.email, function (err) {
+//        if (gitSuccess(err, callback)) {
           repo.remove(gitfiles, function (err) {
             if (gitSuccess(err, callback)) {
               repo.commit(data.changemessage, function (err) {
@@ -193,10 +193,10 @@ function deleteWikiPage(data, callback) {
               gitSuccess('repo.remove failed', null);
             }
           });
-        }
-      });
-    }
-  });
+//        }
+//      });
+//    }
+//  });
 }
 
 /*

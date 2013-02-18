@@ -351,6 +351,7 @@ var router = new director.http.Router(route);
 
 //////////////////// setup server
 
+// TODO SSL...
 var server = http.createServer(function (req, res) {
   if (DEBUG) {
     console.log('New request for URL ' + req.url);

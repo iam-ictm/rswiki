@@ -6,7 +6,6 @@ TODOs
 =====
 * package.js?
 * split up in multiple files?
-* Use AJAX instead of websockets? -> <https://npmjs.org/package/request> ?
 * Simple navigation based on directory structure
 * buildprocess including minimizing, linting, tag-generation
     * <http://blog.millermedeiros.com/node-js-as-a-build-script/>
@@ -22,6 +21,7 @@ TODOs
     * Have pages a named + versioned (take git-revision)-graph in tripplestore
         * Use SIOC?
 * authentication
+    * WebID
 
 Features and ideas
 ==================

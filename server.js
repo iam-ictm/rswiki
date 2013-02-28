@@ -117,9 +117,9 @@ var api_savePage = function (req, res, next) {
       var repo = new git.Repository(WIKIDATA);
       var gitFiles = [data.page.name + '.md'];
 
-//      git.config('user.name', data.user.name, function (err) {   // BUG overrides global config
+//      git.config('user.name', data.user.name, function _gitConfigNameErr (err) {   // BUG overrides global config
 //        if (gitSuccess(err, callback)) {
-//          git.config('user.email', data.user.email, function (err) {
+//          git.config('user.email', data.user.email, function _gitConfigEMail(err) {
 //            if (gitSuccess(err, callback)) {
               repo.add(gitFiles, function _gitAddErr (err) {
                 if (gitSuccess(err, callback)) {
@@ -162,9 +162,9 @@ var api_deletePage = function (req, res, next) {
 
   logger.info({fileName: fileName, page: {name: data.page.name}}, 'deleteWikiPage: %s', data.page.name);
 
-//  git.config('user.name', data.user.name, function (err) {   // BUG overrides global config
+//  git.config('user.name', data.user.name, function _gitConfigNameErr (err) {   // BUG overrides global config
 //    if (gitSuccess(err, callback)) {
-//      git.config('user.email', data.user.email, function (err) {
+//      git.config('user.email', data.user.email, function _gitConfigEMailErr (err) {
 //        if (gitSuccess(err, callback)) {
           repo.remove(gitFiles, function _gitRemoveErr (err) {
             if (gitSuccess(err, callback)) {
@@ -312,6 +312,6 @@ server.post(PAGEPREFIX + '/:name', api_savePage);
 server.del(PAGEPREFIX + '/:name', api_deletePage);
 
 //// start server
-server.listen(LISTENPORT, function listenCallback() {
+server.listen(LISTENPORT, function listenCallback () {
   logger.info({serverName: server.name, serverURL: server.url}, '%s listening at %s.', server.name, server.url);
 });

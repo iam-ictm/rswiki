@@ -1,5 +1,13 @@
 /*
- * TODO license/copyright
+ * Copyright 2013 Berne University of Applied Sciences (BUAS) -- http://bfh.ch
+ * Author: Pascal Mainini <pascal.mainini@bfh.ch>
+ *
+ * ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING !
+ *
+ * THIS FILE HAS NO DEFINITIVE LICENSING INFORMATION.
+ * LICENSE IS SUBJECT OF CHANGE ANYTIME SOON - DO NOT DISTRIBUTE!
+ *
+ * ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING !
  */
 
 /*jshint node:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, regexp:true, undef:true, unused: true, trailing:true */

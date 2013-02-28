@@ -2,7 +2,7 @@
  * TODO license/copyright
  */
 
-/*jshint node:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, regexp:true, undef:true, unused: true, trailing:true */
+/*jshint node:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, undef:true, unused: true, trailing:true, white:false */
 /*global DOCUMENT:true, HTML:true, HEAD:true, BODY:true, META:true, TITLE:true, LINK:true, SCRIPT:true, A:true, DIV:true SPAN:true */
 
 
@@ -13,7 +13,7 @@
 'use strict';
 
 // TODO: make options configurable
-var DEBUG = true;  // TODO use better logging-system (https://github.com/trentm/node-bunyan maybe?)
+var AUDITLOG = true;
 var LISTENPORT = 8080;
 var WIKIDATA = '/tmp/wikidata';
 var PAGEPREFIX = '/page';
@@ -28,14 +28,17 @@ var CLIENTRESOURCES = {domo: '/node_modules/domo/lib/domo.js',
 
 require('domo').global();
 
-var http = require('http'),
-  filesystem = require('fs'),
-  url = require('url'),
+var filesystem = require('fs'),
   pagedown = require('pagedown'),
-  mime = require('mime'),
-  director = require('director'),
-  io = require('socket.io'),
-  git = require('gitty');
+  restify = require('restify'),
+  git = require('gitty'),
+  bunyan = require('bunyan');
+
+var logger = bunyan.createLogger({    // ISSUE stuff logged with logger.debug somehow doesn't appear at all...
+  name: 'wiki',
+  stream: process.stdout,
+  src: true
+});
 
 
 /***********************************************************
@@ -49,11 +52,9 @@ var http = require('http'),
  * Properly inform user via callback and return true/false for continuing or
  * aborting the CSP.
  */
-function gitSuccess(err, callback) {
+var gitSuccess = function (err, callback) {
   if (err) {
-    if (DEBUG) {
-      console.log('ERROR: git error: ' + err);
-    }
+    logger.error({error: err}, 'git error: %s', err);
 
     if (callback) {
       callback(true, 'Error occured while saving page : ' + err);
@@ -63,83 +64,76 @@ function gitSuccess(err, callback) {
   } else {
     return true;
   }
-}
+};
 
+
+//////////////////// REST-API
 
 /*
  * Loads the contents of a wikipage (in markdown) from WIKIDATA
  */
-function loadWikiPage(name, callback) { // TODO use same input-structure as saveWikiPage() and deleteWikiPage(), document
-  var filename = WIKIDATA + '/' + name + '.md';
+var api_getPage = function (req, res, next) {
+  var pageName = req.params.name;
+  var fileName = WIKIDATA + '/' + pageName + '.md';
 
-  if (DEBUG) {
-    console.log('Loading page "' + filename + '"...');
-  }
+  logger.info({fileName: fileName, page: {title: pageName}}, 'api_loadWikiPage: %s', fileName);
 
-  filesystem.exists(filename, function (exists) {
+  filesystem.exists(fileName, function _fsExists (exists) {
     if (exists) {
-      filesystem.readFile(filename, 'utf8', function (err, file) {
+      filesystem.readFile(fileName, 'utf8', function _readErr (err, file) {
         if (err) {
-          if (DEBUG) {
-            console.log('ERROR: Error occured while loading page: ' + err);
-          }
-          callback(true, 'Error occured while loading page : ' + err);
+          logger.error({error: err, fileName: fileName, page: {title: pageName}}, 'ERROR: Error occured while loading page: %s', err);
+          return next(err);
         } else {
-          callback(false, file);
+          return next({page: {content: file, title: req.params.name}});
         }
       });
     } else {
-      // not existing is not an error, returning a marker to indicate that...
-
-      if (DEBUG) {
-        console.log('Page does not exist, returning NEWPAGE-marker...');
-      }
-      callback(false, '%#%NEWPAGE%#%');
+      logger.info('Page does not exist, returning empty content.');
+      next({page: {content: null, title: pageName}});
     }
   });
-}
+};
 
 /*
  * Saves the contents (markdown) of a wikipage to WIKIDATA and commits it
  * in git.
  */
-function saveWikiPage(data, callback) {
-  var filename = WIKIDATA + '/' + data.pagename + '.md';
+var api_savePage = function (req, res, next) {
 
-  if (DEBUG) {
-    console.log('Saving page "' + filename + '"...');
-  }
+  return next();
+
+/* TO BE FIXED
+  var fileName = WIKIDATA + '/' + data.page.name + '.md';
+
+  logger.info({fileName: fileName, page: {name: data.page.name}}, 'saveWikiPage: %s', fileName);
 
   // TODO synchronize the whole thing somehow?
-  filesystem.writeFile(filename, data.markdown, 'utf8', function (err) {
+  filesystem.writeFile(fileName, data.page.content, 'utf8', function _writeErr(err) {
     if (err) {
-      if (DEBUG) {
-        console.log('ERROR: Error occured while saving page: ' + err);
-      }
+      logger.error({error: err, fileName: fileName, page: {name: data.pagename}}, 'Error occured while saving page: %s', err);
       callback(true, 'Error occured while saving page : ' + err);
     } else {
       var repo = new git.Repository(WIKIDATA);
-      var gitfiles = [data.pagename + '.md'];
+      var gitFiles = [data.page.name + '.md'];
 
 //      git.config('user.name', data.user.name, function (err) {   // BUG overrides global config
 //        if (gitSuccess(err, callback)) {
 //          git.config('user.email', data.user.email, function (err) {
 //            if (gitSuccess(err, callback)) {
-              repo.add(gitfiles, function (err) {
+              repo.add(gitFiles, function _gitAddErr (err) {
                 if (gitSuccess(err, callback)) {
-                  repo.commit(data.changemessage, function (err) {
+                  repo.commit(data.changemessage, function _gitCommitErr (err) {
                     if (gitSuccess(err, callback)) {
-                      if (DEBUG) {
-                        console.log('Successfully committed page "' + data.pagename + '"!');
-                      }
+                      logger.info({fileName: fileName, page: {name: data.page.name}}, 'Successfully committed page %s', data.page.name);
                     } else {
                       gitSuccess('repo.commit failed', null); // TODO ugly
-                      repo.unstage(gitfiles, gitSuccess);
+                      repo.unstage(gitFiles, gitSuccess);
                     }
                   });
                 } else {
                   gitSuccess('repo.add failed', null); // TODO ugly
-                  repo.unstage(gitfiles, gitSuccess);
+                  repo.unstage(gitFiles, gitSuccess);
                 }
               });
 //            }
@@ -149,40 +143,40 @@ function saveWikiPage(data, callback) {
     }
   });
 
-  loadWikiPage(data.pagename, callback);    // reload page from storage and give it back to caller
-}
+  loadWikiPage(data.page.name, callback);    // reload page from storage and give it back to caller
+
+*/
+};
 
 /*
- * Loads the contents of a wikipage (in markdown) from WIKIDATA
+ * Deletes a page from git and fs.
  */
-function deleteWikiPage(data, callback) {
-  var filename = WIKIDATA + '/' + data.pagename + '.md';
-  var repo = new git.Repository(WIKIDATA);
-  var gitfiles = [data.pagename + '.md'];
+var api_deletePage = function (req, res, next) {
 
-  if (DEBUG) {
-    console.log('Deleting page "' + data.pagename + '"...');
-  }
+  return next();
+
+/* TO BE FIXED
+  var fileName = WIKIDATA + '/' + data.page.name + '.md';
+  var repo = new git.Repository(WIKIDATA);
+  var gitFiles = [data.page.name + '.md'];
+
+  logger.info({fileName: fileName, page: {name: data.page.name}}, 'deleteWikiPage: %s', data.page.name);
 
 //  git.config('user.name', data.user.name, function (err) {   // BUG overrides global config
 //    if (gitSuccess(err, callback)) {
 //      git.config('user.email', data.user.email, function (err) {
 //        if (gitSuccess(err, callback)) {
-          repo.remove(gitfiles, function (err) {
+          repo.remove(gitFiles, function _gitRemoveErr (err) {
             if (gitSuccess(err, callback)) {
-              repo.commit(data.changemessage, function (err) {
+              repo.commit(data.changemessage, function _gitCommitErr (err) {
                 if (gitSuccess(err, callback)) {
-                  filesystem.unlink(filename, function (err) {
+                  filesystem.unlink(fileName, function _unlinkErr (err) {
                     if (err) {
-                      if (DEBUG) {
-                        console.log('ERROR while deleting page: ' + err);
-                        callback(true, err);
-                      }
+                      logger.error({page: {name: data.page.name}, fileName: fileName, error: err}, 'Error while deleting page: %s', err);
+                      callback(true, err);
                     } else {
-                      if (DEBUG) {
-                        console.log('Successfully deleted page "' + data.pagename + '"!');
-                        callback(false, null);
-                      }
+                      logger.info({page: {Name: data.page.name}, fileName: fileName}, 'Successfully deleted page %s', data.page.name);
+                      callback(false, null);
                     }
                   });
                 } else {
@@ -197,248 +191,127 @@ function deleteWikiPage(data, callback) {
 //      });
 //    }
 //  });
-}
 
-/*
- * Send a proper 404-response...
+*/
+};
+
+
+//////////////////// output-formatters
+
+/**
+ * Formatter used when request is text/html
  */
-function send404(response) {
-  if (DEBUG) {
-    console.log('ERROR: 404 Not found!');
-  }
+var fmt_Html = function (req, res, body) {
 
-  response.writeHead(404, {
-    'Content-Type': 'text/plain;charset="utf-8"'
-  });
-  response.write('404 Not found!\n');
-  response.end();
-}
+  if (body instanceof Error) {
 
-
-//////////////////// functions for router
-
-/*
- * Reads a file from the filesystem and sends it to the client, setting
- * content-type as determined by mime.lookup()
- */
-function rtr_getFile(prefix, path) {
-  var that = this;
-  var filename = prefix + '/' + path;  // TODO workaround for not working regexp in director/route...
-
-  if (DEBUG) {
-    console.log('Routed into rtr_getFile("' + filename + '")');
-  }
-
-  filesystem.exists(filename, function (exists) {
-    if (exists) {
-      filesystem.readFile(filename, 'binary', function (err, file) {
-        if (err) {
-          if (DEBUG) {
-            console.log('ERROR: Error occured reading file: ' + err);
-          }
-
-          that.res.writeHead(500, {
-            'Content-Type': 'text/plain;charset="utf-8"'
-          });
-          that.res.write(err + '\n');
-          that.res.end();
-        } else {
-          var type = mime.lookup(filename);
-          that.res.writeHead(200, {
-            'Content-Type': type
-          });
-          that.res.write(file, 'binary');
-          that.res.end();
-        }
-      });
-    } else {
-      send404(that.res);
-    }
-  });
-}
-
-/*
- * Creates the markup for a wikipage and fills it with the current content of
- * the specified page in WIKIDATA.
- */
-function rtr_getPage() {
-  var that = this;
-  var page = url.parse(this.req.url).pathname.replace(PAGEPREFIX + '/', '');
-
-  if (DEBUG) {
-    console.log('Routed into rtr_getPage()');
-  }
-
-  loadWikiPage(page, function (err, data) {
-    var pagecontent = '';
-
-    if (err) {
-      pagecontent = '<div id="wikierror">' + data + '</div>';
-    } else {
-      pagecontent = pagedown.getSanitizingConverter().makeHtml(data); // or: new pagedown.Converter();
-    }
-
-    that.res.writeHead(200, {'Content-Type': 'text/html'});
-    that.res.end(
-      DOCUMENT(
-        HTML({lang: 'en'},
-          HEAD(
-            META({charset: 'utf-8'}),
-            TITLE('Wiki'),
-            LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
-            SCRIPT({src: CLIENTRESOURCES.domo}),
-            SCRIPT({src: CLIENTRESOURCES.director}),
-            SCRIPT({src: CLIENTRESOURCES.md_converter}),
-            SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
-            SCRIPT({src: CLIENTRESOURCES.md_editor}),
-            SCRIPT({src: '/socket.io/socket.io.js'}),   // provided by io.listen(server...)
-            SCRIPT({src: CLIENTRESOURCES.jquery}),
-            SCRIPT({src: CLIENTRESOURCES.wikifunctions})
-          ),
-          BODY(
-            DIV({id: 'header'},
-              DIV({id: 'title'}, page),
-              DIV({id: 'navi'},
-                A({id: 'editbutton', href: '#/edit'}, 'edit'),
-                SPAN({id: 'deletebutton'}, ' | ', A({href: '#/delete'}, 'delete'))
-              )
-            ),
-            DIV({id: 'wikieditor'}),
-            DIV({id: 'wikicontent'}, '%#%PAGECONTENT%#%')
-          )
+    return DOCUMENT(
+      HTML({lang: 'en'},
+        HEAD(
+          META({charset: 'utf-8'}),
+          TITLE(body.statusCode ? body.statusCode  + ': ' + body.message : body.message)
+        ),
+        BODY(
+          DIV({id: 'wikierror'}, (body.statusCode ? body.statusCode  + ': ' + body.message : body.message))
         )
-      ).outerHTML.replace('%#%PAGECONTENT%#%', pagecontent)
-    );
-  });
-}
+      )
+    ).outerHTML + '\n';
+
+  } else {
+
+    var pageContent;
+    if (body.page.content) {
+      pageContent = pagedown.getSanitizingConverter().makeHtml(body.page.content);   // or: new pagedown.Converter();
+    } else {
+      pageContent = '%#%NEWPAGE%#%';
+    }
+
+    return DOCUMENT(
+      HTML({lang: 'en'},
+        HEAD(
+          META({charset: 'utf-8'}),
+          TITLE(body.page.title),
+          LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
+          SCRIPT({src: CLIENTRESOURCES.domo}),
+          SCRIPT({src: CLIENTRESOURCES.director}),
+          SCRIPT({src: CLIENTRESOURCES.md_converter}),
+          SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
+          SCRIPT({src: CLIENTRESOURCES.md_editor}),
+          SCRIPT({src: CLIENTRESOURCES.jquery}),
+          SCRIPT({src: CLIENTRESOURCES.wikifunctions})
+        ),
+        BODY(
+          DIV({id: 'header'},
+            DIV({id: 'title'}, body.page.title),
+            DIV({id: 'navi'},
+              A({id: 'editbutton', href: '#/edit'}, 'edit'),
+              SPAN({id: 'deletebutton'}, ' | ', A({href: '#/delete'}, 'delete'))
+            )
+          ),
+          DIV({id: 'wikieditor'}),
+          DIV({id: 'wikicontent'}, '%#%PAGECONTENT%#%')
+        )
+      )
+    ).outerHTML.replace('%#%PAGECONTENT%#%', pageContent) + '\n';   // or: new pagedown.Converter();
+
+  }
+};
+
+/**
+ * Formatter used when request is text/plain
+ * @param {String} array of accept types.   TODO use these everywhere
+ * @return
+ */
+var fmt_Text = function (req, res, body) {
+  if (body instanceof Error) {
+    return 'Error!\n\n' +
+      (body.statusCode ? 'Statuscode: ' + body.statusCode + '\n' : '') +
+      'Message: ' + body.message + '\n';
+  } else {
+    return 'Title: ' + body.page.title +
+      '\n------------------ START CONTENT --------------------\n' +
+      body.page.content +
+      '\n------------------- END CONTENT ---------------------\n';
+  }
+};
 
 
 /***********************************************************
  * Main application
  **********************************************************/
 
-//////////////////// setup router
-
-var route = {
-  '/(static)/(.*)': {
-    get:  rtr_getFile
-  },
-  '/(lib)/(.*)': {
-    get:  rtr_getFile
-  },
-  '/(node_modules)/(.*)': {
-    get:  rtr_getFile
-  },
-  PAGEPREFIX: {
-    '/(.+)': {
-      get: rtr_getPage
-    }
-  },
-  '/': {
-    get: function () {
-      if (DEBUG) {
-        console.log('Redirecting to /page/main...');
-      }
-
-      this.res.writeHead(301, {'Location': '/page/main'});
-      this.res.end();
-    }
-  }
-};
-
-var router = new director.http.Router(route);
-
-
 //////////////////// setup server
 
-// TODO SSL...
-var server = http.createServer(function (req, res) {
-  if (DEBUG) {
-    console.log('New request for URL ' + req.url);
+var server = restify.createServer({
+  formatters: {
+    'text/html': fmt_Html,
+    'text/plain': fmt_Text,
+    '*/*': fmt_Html           // ISSUE workaround for seemingly improper accept-header-evaluation by restify...
   }
+});  // TODO SSL...
 
-  router.dispatch(req, res, function (err) {
-    if (err) {
-      send404(res);
-    }
-  });
-});
+//// server: events
+if (AUDITLOG) {
+  server.on('after', restify.auditLogger({log: logger}));
+}
 
-server.listen(LISTENPORT);
+//// server: general handlers
+server.use(restify.requestLogger());    // ISSUE requestLogger logs NOTHING!
+server.use(restify.bodyParser());
+server.use(restify.acceptParser(server.acceptable));
 
+//// server: static content
+server.get(/\/static\/?.*/, restify.serveStatic({directory: '.'}));   // ISSUE serveStatic doesn't emit NotFound-event...
+server.get(/\/lib\/?.*/, restify.serveStatic({directory: '.'}));
+server.get(/\/node_modules\/?.*/, restify.serveStatic({directory: '.'}));
 
-//////////////////// setup socket.io-listener
+//// server: page API
+server.get(PAGEPREFIX + '/:name', api_getPage);   // TODO GET redirect / -> /page/main
+server.put(PAGEPREFIX + '/:name', api_savePage);
+server.post(PAGEPREFIX + '/:name', api_savePage);
+server.del(PAGEPREFIX + '/:name', api_deletePage);
 
-var ioListener = io.listen(server, {log: false});
-ioListener.sockets.on('connection', function (socket) {
-  // anonymous functions for socket.io-events. TODO maybe use events instead of CSP?
-
-  // editPrepare-event
-  socket.on('editPrepare', function (data) {    // TODO check params, especially pagename
-    if (DEBUG) {
-      console.log('Received io event editPrepare for page "' + data.pagename + '".');
-    }
-
-    loadWikiPage(data.pagename, function (err, data) {
-      if (err) {
-        if (DEBUG) {
-          console.log('Emitting error, error occured: ' + data);
-        }
-        socket.emit('error', {pagename: data.pagename, error: data});
-      } else {
-        if (DEBUG) {
-          console.log('Emitting editStart, sending markdown...');
-        }
-        socket.emit('editStart',  {pagename: data.pagename, pagecontent: data});
-      }
-    });
-  });
-
-  // save-event
-  socket.on('save', function (data) {    // TODO check params, especially pagename
-    if (DEBUG) {
-      console.log('Received io event save for page "' + data.pagename + '".');
-    }
-
-    data.user = {name: 'The Wiki', email: 'wiki@localhost'};  // TODO session-based credentials
-    data.changemessage = 'Edited in wiki';  // TODO can asked from the user
-
-    saveWikiPage(data, function (err, data) {
-      if (err) {
-        if (DEBUG) {
-          console.log('Emitting error, error occured: ' + data);
-        }
-        socket.emit('error', {pagename: data.pagename, error: data});
-      } else {
-        if (DEBUG) {
-          console.log('Emitting pageSaved, sending markdown...');
-        }
-        socket.emit('pageSaved',  {pagename: data.pagename, pagecontent: data});
-      }
-    });
-  });
-
-  // delete-event
-  socket.on('delete', function (data) {    // TODO check params, especially pagename
-    if (DEBUG) {
-      console.log('Received io event delete for page "' + data.pagename + '".');
-    }
-
-    data.user = {name: 'The Wiki', email: 'wiki@localhost'};  // TODO session-based credentials
-    data.changemessage = 'Deleted in wiki';  // TODO can asked from the user
-
-    deleteWikiPage(data, function (err, cbdata) {
-      if (err) {
-        if (DEBUG) {
-          console.log('Emitting error, error occured: ' + cbdata);
-        }
-        socket.emit('error', {pagename: data.pagename, error: cbdata});
-      } else {
-        if (DEBUG) {
-          console.log('Emitting pageSaved with NEWPAGE');
-        }
-        socket.emit('pageSaved',  {pagename: data.pagename, pagecontent: '%#%NEWPAGE%#%'});
-      }
-    });
-  });
+//// start server
+server.listen(LISTENPORT, function listenCallback() {
+  logger.info({serverName: server.name, serverURL: server.url}, '%s listening at %s.', server.name, server.url);
 });

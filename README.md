@@ -4,8 +4,8 @@ A wiki based on node.js and git. A better description as well as a name will fol
 
 TODOs
 =====
+* Document sourcecode, especially the page-dict
 * package.js?
-* split up in multiple files?
 * Simple navigation based on directory structure
 * buildprocess including minimizing, linting, tag-generation
     * <http://blog.millermedeiros.com/node-js-as-a-build-script/>

@@ -26,12 +26,12 @@ var LISTENPORT = 8080;
 var WIKIDATA = '/tmp/wikidata';
 var PAGEPREFIX = '/page';
 var CLIENTRESOURCES = {domo: '/node_modules/domo/lib/domo.js',
-                        director: '/node_modules/director/build/director.min.js',
                         md_converter: '/node_modules/pagedown/Markdown.Converter.js',
                         md_sanitizer: '/node_modules/pagedown/Markdown.Sanitizer.js',
                         md_editor: '/lib/wmd-editor/Markdown.Editor.js',
                         md_styles: '/lib/wmd-editor/wmd-styles.css',
                         jquery: '/lib/jquery-1.9.0.js',
+                        jquery_rest: '/lib/jquery.rest.js',
                         wikifunctions: '/static/wikifunctions.js'};
 
 require('domo').global();
@@ -40,6 +40,7 @@ var filesystem = require('fs'),
   pagedown = require('pagedown'),
   restify = require('restify'),
   git = require('gitty'),
+  mimeparse = require('mimeparse'),
   bunyan = require('bunyan');
 
 var logger = bunyan.createLogger({    // ISSUE stuff logged with logger.debug somehow doesn't appear at all...
@@ -53,28 +54,6 @@ var logger = bunyan.createLogger({    // ISSUE stuff logged with logger.debug so
  * Function definitions
  **********************************************************/
 
-//////////////////// helper-functions
-
-/*
- * Helper for handling callbacks of repo.*
- * Properly inform user via callback and return true/false for continuing or
- * aborting the CSP.
- */
-var gitSuccess = function (err, callback) {
-  if (err) {
-    logger.error({error: err}, 'git error: %s', err);
-
-    if (callback) {
-      callback(true, 'Error occured while saving page : ' + err);
-    }
-
-    return false;
-  } else {
-    return true;
-  }
-};
-
-
 //////////////////// REST-API
 
 /*
@@ -84,21 +63,21 @@ var api_getPage = function (req, res, next) {
   var pageName = req.params.name;
   var fileName = WIKIDATA + '/' + pageName + '.md';
 
-  logger.info({fileName: fileName, page: {title: pageName}}, 'api_loadWikiPage: %s', fileName);
+  logger.info({fileName: fileName, page: {name: pageName}}, 'api_getPage: %s', pageName);
 
   filesystem.exists(fileName, function _fsExists (exists) {
     if (exists) {
       filesystem.readFile(fileName, 'utf8', function _readErr (err, file) {
         if (err) {
-          logger.error({error: err, fileName: fileName, page: {title: pageName}}, 'ERROR: Error occured while loading page: %s', err);
+          logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while loading page %s : %s', pageName, err);
           return next(err);
         } else {
-          return next({page: {content: file, title: req.params.name}});
+          return next({page: {content: file, name: req.params.name}});
         }
       });
     } else {
-      logger.info('Page does not exist, returning empty content.');
-      next({page: {content: null, title: pageName}});
+      logger.info({fileName: fileName, page: {name: pageName}}, 'Page %s does not exist, returning "null"-content.', pageName);
+      return next({page: {content: null, name: pageName}});
     }
   });
 };
@@ -108,40 +87,50 @@ var api_getPage = function (req, res, next) {
  * in git.
  */
 var api_savePage = function (req, res, next) {
+  var pageName = req.params.name;
+  var page = req.params.page;
+  var fileName = WIKIDATA + '/' + pageName + '.md';
 
-  return next();
-
-/* TO BE FIXED
-  var fileName = WIKIDATA + '/' + data.page.name + '.md';
-
-  logger.info({fileName: fileName, page: {name: data.page.name}}, 'saveWikiPage: %s', fileName);
+  logger.info({fileName: fileName, page: {name: pageName}}, 'api_savePage: %s', pageName);
 
   // TODO synchronize the whole thing somehow?
-  filesystem.writeFile(fileName, data.page.content, 'utf8', function _writeErr(err) {
+  filesystem.writeFile(fileName, page.content, 'utf8', function _writeErr(err) {
     if (err) {
-      logger.error({error: err, fileName: fileName, page: {name: data.pagename}}, 'Error occured while saving page: %s', err);
-      callback(true, 'Error occured while saving page : ' + err);
+      logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while writing page %s : %s', pageName, err);
+      return next(err);
     } else {
       var repo = new git.Repository(WIKIDATA);
-      var gitFiles = [data.page.name + '.md'];
+      var gitFiles = [pageName + '.md'];
 
 //      git.config('user.name', data.user.name, function _gitConfigNameErr (err) {   // BUG overrides global config
 //        if (gitSuccess(err, callback)) {
 //          git.config('user.email', data.user.email, function _gitConfigEMail(err) {
 //            if (gitSuccess(err, callback)) {
               repo.add(gitFiles, function _gitAddErr (err) {
-                if (gitSuccess(err, callback)) {
-                  repo.commit(data.changemessage, function _gitCommitErr (err) {
-                    if (gitSuccess(err, callback)) {
-                      logger.info({fileName: fileName, page: {name: data.page.name}}, 'Successfully committed page %s', data.page.name);
+                if (err) {
+                  logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while adding to git, trying to unstage: %s', err);
+                  repo.unstage(gitFiles, function _gitUnstageErr (err) {
+                      if(err) {
+                        logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while unstaging: %s', err);
+                        return next(err);
+                      }
+                    });
+                  return next(err);
+                } else {
+                  repo.commit(page.changeMessage, function _gitCommitErr (err) {
+                    if (err) {
+                      logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while commiting to git, trying to unstage: %s', err);
+                      repo.unstage(gitFiles, function _gitUnstageErr (err) {
+                          if (err) {
+                            logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while unstaging: %s', err);
+                            return next(err);
+                          }
+                        });
+                      return next(err);
                     } else {
-                      gitSuccess('repo.commit failed', null); // TODO ugly
-                      repo.unstage(gitFiles, gitSuccess);
+                      logger.info({fileName: fileName, page: {name: pageName}}, 'Successfully committed page %s.', pageName);
                     }
                   });
-                } else {
-                  gitSuccess('repo.add failed', null); // TODO ugly
-                  repo.unstage(gitFiles, gitSuccess);
                 }
               });
 //            }
@@ -151,56 +140,53 @@ var api_savePage = function (req, res, next) {
     }
   });
 
-  loadWikiPage(data.page.name, callback);    // reload page from storage and give it back to caller
-
-*/
+  api_getPage(req, res, next);    // reload page from storage and give it back to caller
 };
 
 /*
  * Deletes a page from git and fs.
  */
 var api_deletePage = function (req, res, next) {
+  var pageName = req.params.name;
+  var page = req.params.page;
+  var fileName = WIKIDATA + '/' + pageName + '.md';
 
-  return next();
-
-/* TO BE FIXED
-  var fileName = WIKIDATA + '/' + data.page.name + '.md';
   var repo = new git.Repository(WIKIDATA);
-  var gitFiles = [data.page.name + '.md'];
+  var gitFiles = [pageName + '.md'];
 
-  logger.info({fileName: fileName, page: {name: data.page.name}}, 'deleteWikiPage: %s', data.page.name);
+  logger.info({fileName: fileName, page: {name: pageName}}, 'api_deletePage: %s', pageName);
 
 //  git.config('user.name', data.user.name, function _gitConfigNameErr (err) {   // BUG overrides global config
 //    if (gitSuccess(err, callback)) {
 //      git.config('user.email', data.user.email, function _gitConfigEMailErr (err) {
 //        if (gitSuccess(err, callback)) {
           repo.remove(gitFiles, function _gitRemoveErr (err) {
-            if (gitSuccess(err, callback)) {
-              repo.commit(data.changemessage, function _gitCommitErr (err) {
-                if (gitSuccess(err, callback)) {
+            if (err) {
+              logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error while removing page %s from git: %s', pageName, err);
+              return next(err);
+            } else {
+              repo.commit(page.changeMessage, function _gitCommitErr (err) {
+                if (err) {
+                  logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error while committing to git: %s', err);
+                  return next(err);
+                } else {
                   filesystem.unlink(fileName, function _unlinkErr (err) {
                     if (err) {
-                      logger.error({page: {name: data.page.name}, fileName: fileName, error: err}, 'Error while deleting page: %s', err);
-                      callback(true, err);
+                      logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error while deleting page %s : %s', pageName, err);
+                      return next(err);
                     } else {
-                      logger.info({page: {Name: data.page.name}, fileName: fileName}, 'Successfully deleted page %s', data.page.name);
-                      callback(false, null);
+                      logger.info({fileName: fileName, page: {name: pageName}}, 'Successfully deleted page %s.', pageName);
+                      return next({page: {content: null, name: pageName}});
                     }
                   });
-                } else {
-                  gitSuccess('repo.commit failed', null); // TODO ugly
                 }
               });
-            } else {
-              gitSuccess('repo.remove failed', null); // TODO ugly
             }
           });
 //        }
 //      });
 //    }
 //  });
-
-*/
 };
 
 
@@ -220,7 +206,7 @@ var fmt_Html = function (req, res, body) {
           TITLE(body.statusCode ? body.statusCode  + ': ' + body.message : body.message)
         ),
         BODY(
-          DIV({id: 'wikierror'}, (body.statusCode ? body.statusCode  + ': ' + body.message : body.message))
+          DIV({id: 'wiki_error'}, (body.statusCode ? body.statusCode  + ': ' + body.message : body.message))
         )
       )
     ).outerHTML + '\n';
@@ -231,33 +217,33 @@ var fmt_Html = function (req, res, body) {
     if (body.page.content) {
       pageContent = pagedown.getSanitizingConverter().makeHtml(body.page.content);   // or: new pagedown.Converter();
     } else {
-      pageContent = '%#%NEWPAGE%#%';
+      pageContent = '';
     }
 
     return DOCUMENT(
       HTML({lang: 'en'},
         HEAD(
           META({charset: 'utf-8'}),
-          TITLE(body.page.title),
+          TITLE(body.page.name),
           LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
           SCRIPT({src: CLIENTRESOURCES.domo}),
-          SCRIPT({src: CLIENTRESOURCES.director}),
           SCRIPT({src: CLIENTRESOURCES.md_converter}),
           SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),
           SCRIPT({src: CLIENTRESOURCES.md_editor}),
           SCRIPT({src: CLIENTRESOURCES.jquery}),
+          SCRIPT({src: CLIENTRESOURCES.jquery_rest}),
           SCRIPT({src: CLIENTRESOURCES.wikifunctions})
         ),
         BODY(
-          DIV({id: 'header'},
-            DIV({id: 'title'}, body.page.title),
-            DIV({id: 'navi'},
-              A({id: 'editbutton', href: '#/edit'}, 'edit'),
-              SPAN({id: 'deletebutton'}, ' | ', A({href: '#/delete'}, 'delete'))
+          DIV({id: 'wiki_header'},
+            DIV({id: 'wiki_title'}, body.page.name),
+            DIV({id: 'wiki_navi'},
+              A({id: 'wiki_button_edit', href: '#'}, 'edit'),
+              SPAN({id: 'wiki_button_delete'}, ' | ', A({href: '#'}, 'delete'))
             )
           ),
-          DIV({id: 'wikieditor'}),
-          DIV({id: 'wikicontent'}, '%#%PAGECONTENT%#%')
+          DIV({id: 'wiki_editor'}),
+          DIV({id: 'wiki_content'}, '%#%PAGECONTENT%#%')
         )
       )
     ).outerHTML.replace('%#%PAGECONTENT%#%', pageContent) + '\n';   // or: new pagedown.Converter();
@@ -276,7 +262,7 @@ var fmt_Text = function (req, res, body) {
       (body.statusCode ? 'Statuscode: ' + body.statusCode + '\n' : '') +
       'Message: ' + body.message + '\n';
   } else {
-    return 'Title: ' + body.page.title +
+    return 'Title: ' + body.page.name +
       '\n------------------ START CONTENT --------------------\n' +
       body.page.content +
       '\n------------------- END CONTENT ---------------------\n';
@@ -293,8 +279,8 @@ var fmt_Text = function (req, res, body) {
 var server = restify.createServer({
   formatters: {
     'text/html': fmt_Html,
-    'text/plain': fmt_Text,
-    '*/*': fmt_Html           // ISSUE workaround for seemingly improper accept-header-evaluation by restify...
+    'text/plain': fmt_Text
+    // application/json gets implicitly handled by restify
   }
 });  // TODO SSL...
 
@@ -302,6 +288,12 @@ var server = restify.createServer({
 if (AUDITLOG) {
   server.on('after', restify.auditLogger({log: logger}));
 }
+
+// ISSUE workaround for seemingly improper accept-header-evaluation by restify...
+server.pre(function(req, res, next) {
+  req.headers.accept = mimeparse.bestMatch(['text/plain','text/html','application/json'], req.headers.accept);
+  return next();
+});
 
 //// server: general handlers
 server.use(restify.requestLogger());    // ISSUE requestLogger logs NOTHING!
@@ -314,7 +306,7 @@ server.get(/\/lib\/?.*/, restify.serveStatic({directory: '.'}));
 server.get(/\/node_modules\/?.*/, restify.serveStatic({directory: '.'}));
 
 //// server: page API
-server.get(PAGEPREFIX + '/:name', api_getPage);   // TODO GET redirect / -> /page/main
+server.get(PAGEPREFIX + '/:name', api_getPage);   // TODO GET redirect / to a mainpage or provide a list of pages?
 server.put(PAGEPREFIX + '/:name', api_savePage);
 server.post(PAGEPREFIX + '/:name', api_savePage);
 server.del(PAGEPREFIX + '/:name', api_deletePage);

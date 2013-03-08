@@ -4,13 +4,13 @@ A wiki based on node.js and git. A better description as well as a name will fol
 
 TODOs
 =====
-* Document sourcecode, especially the page-dict
 * package.js?
 * Simple navigation based on directory structure
 * buildprocess including minimizing, linting, tag-generation
     * <http://blog.millermedeiros.com/node-js-as-a-build-script/>
     * <http://gruntjs.com/>
 * unit-testing 
+    * <http://net.tutsplus.com/tutorials/javascript-ajax/headless-functional-testing-with-selenium-and-phantomjs/>
     * <http://stackoverflow.com/questions/300855/looking-for-a-better-javascript-unit-test-tool>
     * <http://www.ustream.tv/recorded/17159711>
     * <http://proquest.safaribooksonline.com/book/programming/javascript/9780321684097?bookview=overview>

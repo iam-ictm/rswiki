@@ -1,6 +1,8 @@
-/*
- * Copyright 2013 Berne University of Applied Sciences (BUAS) -- http://bfh.ch
- * Author: Pascal Mainini <pascal.mainini@bfh.ch>
+/**
+ * @file restify-based node.js-server for the wiki
+ * @copyright 2013 Berne University of Applied Sciences (BUAS) -- {@link http://bfh.ch}
+ * @author Pascal Mainini <pascal.mainini@bfh.ch>
+ * @version 0.2.0
  *
  * ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING !
  *
@@ -8,11 +10,34 @@
  * LICENSE IS SUBJECT OF CHANGE ANYTIME SOON - DO NOT DISTRIBUTE!
  *
  * ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING !
+ *
+ * This is a node.js-server for the wiki based on restify.
+ * It mainly implements a REST-API for CRUD-operations on a wiki-page by using the appropriate REST-verbs.
+ *
+ * The REST-verbs are implemented in the functions api_getPage(), api_savePage(), api_deletePage(),
+ * each of these methods works with a page-"object" taking the following form:
+ *
+ * page {
+ *  name:             {String} name of the page <-> filename without .md
+ *  content:          {String} markdown-content of the page-file
+ *  changeMessage:    {String} message describing the change/delete of the page
+ * }
+ *
+ * There is no assumption made about any of the values in the page-object beeing present and the functions
+ * handling these try to take care of that or at least fail gracefully.
+ *
+ * Internal "communication" is done entirely by passing these objects between callbacks or returning Errors
+ * in case they happen.
+ *
+ * The REST-API currently supports three content-types: text/plain, text/html and application/json.
+ * If application/json is requested, the JSON from the api_*-functions is returned "as-is".
+ * Otherwise, content-formatting is done by one of the fmt_*-functions according to the requested content-type.
  */
 
 /*jshint node:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, undef:true, unused: true, trailing:true, white:false */
 /*global DOCUMENT:true, HTML:true, HEAD:true, BODY:true, META:true, TITLE:true, LINK:true, SCRIPT:true, A:true, DIV:true SPAN:true */
 
+// TODO propper NFE syntax?
 
 /***********************************************************
  * Initialisation
@@ -25,6 +50,7 @@ var AUDITLOG = true;
 var LISTENPORT = 8080;
 var WIKIDATA = '/tmp/wikidata';
 var PAGEPREFIX = '/page';
+
 var CLIENTRESOURCES = {domo: '/node_modules/domo/lib/domo.js',
                         md_converter: '/node_modules/pagedown/Markdown.Converter.js',
                         md_sanitizer: '/node_modules/pagedown/Markdown.Sanitizer.js',
@@ -56,8 +82,13 @@ var logger = bunyan.createLogger({    // ISSUE stuff logged with logger.debug so
 
 //////////////////// REST-API
 
-/*
- * Loads the contents of a wikipage (in markdown) from WIKIDATA
+/**
+ * Loads the contents of a wikipage (in markdown) from storage.
+ *
+ * @param   {restify.Request}   req   Request-object given by restify
+ * @param   {restify.Response}  res   Response-object given by restify
+ * @param   {Function}          next  Next callback in the chain to call
+ * @returns {Object}            The return-value of the next callback in the chain or an Error if something failed.
  */
 var api_getPage = function (req, res, next) {
   var pageName = req.params.name;
@@ -82,9 +113,13 @@ var api_getPage = function (req, res, next) {
   });
 };
 
-/*
- * Saves the contents (markdown) of a wikipage to WIKIDATA and commits it
- * in git.
+/**
+ * Saves the contents (markdown) of a wikipage to the storage and performs a git-commit.
+ *
+ * @param   {restify.Request}   req   Request-object given by restify
+ * @param   {restify.Response}  res   Response-object given by restify
+ * @param   {Function}          next  Next callback in the chain to call
+ * @returns {Object}            Forwards to api_getPage WITHOUT returning it (api_getPage calls next callback) or an Error if something fails.
  */
 var api_savePage = function (req, res, next) {
   var pageName = req.params.name;
@@ -143,8 +178,13 @@ var api_savePage = function (req, res, next) {
   api_getPage(req, res, next);    // reload page from storage and give it back to caller
 };
 
-/*
- * Deletes a page from git and fs.
+/**
+ * Deletes a page from the storage and from git.
+ *
+ * @param   {restify.Request}   req   Request-object given by restify
+ * @param   {restify.Response}  res   Response-object given by restify
+ * @param   {Function}          next  Next callback in the chain to call
+ * @returns {Object}            The return-value of the next callback in the chain or an Error if something failed.
  */
 var api_deletePage = function (req, res, next) {
   var pageName = req.params.name;
@@ -193,7 +233,12 @@ var api_deletePage = function (req, res, next) {
 //////////////////// output-formatters
 
 /**
- * Formatter used when request is text/html
+ * Formatter called by restify when requestor wants text/html.
+ *
+ * @param   {restify.Request}   req   Request-object given by restify
+ * @param   {restify.Response}  res   Response-object given by restify
+ * @param   {Object}            body  The effective wiki-page as returned by the api_*-methods as JSON.
+ * @returns {String}            HTML-representation of the page (or the Error)
  */
 var fmt_Html = function (req, res, body) {
 
@@ -252,9 +297,12 @@ var fmt_Html = function (req, res, body) {
 };
 
 /**
- * Formatter used when request is text/plain
- * @param {String} array of accept types.   TODO use these everywhere
- * @return
+ * Formatter called by restify when requestor wants text/plain.
+ *
+ * @param   {restify.Request}   req   Request-object given by restify
+ * @param   {restify.Response}  res   Response-object given by restify
+ * @param   {Object}            body  The effective wiki-page as returned by the api_*-methods as JSON.
+ * @returns {String}            Plaintext-representation of the page (or the Error)
  */
 var fmt_Text = function (req, res, body) {
   if (body instanceof Error) {
@@ -290,7 +338,7 @@ if (AUDITLOG) {
 }
 
 // ISSUE workaround for seemingly improper accept-header-evaluation by restify...
-server.pre(function(req, res, next) {
+server.pre(function _mimeFix (req, res, next) {
   req.headers.accept = mimeparse.bestMatch(['text/plain','text/html','application/json'], req.headers.accept);
   return next();
 });

@@ -2,7 +2,7 @@
  * @file Clientside-functions for the wiki.
  * @copyright 2013 Berne University of Applied Sciences (BUAS) -- {@link http://bfh.ch}
  * @author Pascal Mainini <pascal.mainini@bfh.ch>
- * @version 0.2.0
+ * @version 0.1.0
  *
  * ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING !
  *

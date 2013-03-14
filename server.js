@@ -53,9 +53,9 @@ var CLIENTRESOURCES = {domo: '/node_modules/domo/lib/domo.js',
                         md_converter: '/node_modules/pagedown/Markdown.Converter.js',
                         md_sanitizer: '/node_modules/pagedown/Markdown.Sanitizer.js',
                         md_editor: '/lib/wmd-editor/Markdown.Editor.js',
-                        md_styles: '/lib/wmd-editor/wmd-styles.css',
-                        jquery: '/lib/jquery-1.9.0.js',
+                        jquery: '/lib/jquery.js',
                         jquery_rest: '/lib/jquery.rest.js',
+                        wikistyles: '/static/wikistyles.css',
                         wikifunctions: '/static/wikifunctions.js'};
 
 require('domo').global();
@@ -268,7 +268,7 @@ var fmt_Html = function fmt_Html (req, res, body) {
         HEAD(
           META({charset: 'utf-8'}),
           TITLE(body.page.name),
-          LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.md_styles}),
+          LINK({rel: 'stylesheet', type: 'text/css', href: CLIENTRESOURCES.wikistyles}),
           SCRIPT({src: CLIENTRESOURCES.domo}),
           SCRIPT({src: CLIENTRESOURCES.md_converter}),
           SCRIPT({src: CLIENTRESOURCES.md_sanitizer}),

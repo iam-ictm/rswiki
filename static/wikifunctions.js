@@ -17,12 +17,10 @@
  * Where needed, callbacks for AJAX-calls are implemented in the according cb_*-functions.
  */
 
-/*jshint jquery:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, undef:true, unused: true, trailing:true */
+/*jshint jquery:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, undef:true, unused: true, trailing:true, white:false */
 /*global document:true, window:true, Markdown:true, A:true, TEXTAREA:true, DIV:true */
 
-// TODO Use FE / NFE instead of FDs... ?
-
-$(document).ready(function () {
+$(document).ready(function readyFunction () {
 
 //////////////////// definitions
 
@@ -43,7 +41,7 @@ $(document).ready(function () {
    * contents of the page. If the page is empty, only a create-"button" is displayed,
    * otherwise "edit" and "delete" are shown.
    */
-  function switchEditMode() {
+  var switchEditMode = function switchEditMode () {
     if ($('#wiki_content').text().length === 0) {
       $('#wiki_content').empty();
       $('#wiki_button_edit').text('create ' + pageName + '...');
@@ -52,7 +50,7 @@ $(document).ready(function () {
       $('#wiki_button_edit').text('edit');
       $('#wiki_button_delete').show();
     }
-  }
+  };
 
 
 //////////////////// AJAX-callbacks
@@ -63,7 +61,7 @@ $(document).ready(function () {
    *
    * @param   {Object}   data   JSON received, containing our page-object.
    */
-  function cb_read(data) {
+  var cb_read = function cb_read (data) {
     var pageContent = data.page.content === null ? '' : data.page.content;
 
     $('#wiki_content').hide();
@@ -88,7 +86,7 @@ $(document).ready(function () {
     var converter = Markdown.getSanitizingConverter();
     var editor = new Markdown.Editor(converter);
     editor.run();
-  }
+  };
 
   /**
    * Callback for the AJAX-PUT on page
@@ -96,7 +94,7 @@ $(document).ready(function () {
    *
    * @param   {Object}   data   JSON received, containing our page-object.
    */
-  function cb_save(data) {
+  var cb_save = function cb_save (data) {
     $('#wiki_editor').empty();
     $('#wiki_editor').hide();
     $('#wiki_content').empty();
@@ -105,7 +103,7 @@ $(document).ready(function () {
     $('#wiki_navi').show();
 
     switchEditMode();
-  }
+  };
 
   /**
    * Callback for the AJAX-DELETE on page.
@@ -113,7 +111,7 @@ $(document).ready(function () {
    *
    * @param   {Object}   data   JSON received, containing our page-object.
    */
-  function cb_del(data) {
+  var cb_del = function cb_del (data) {
     $('#wiki_content').empty();
     if (data.page.content !== null) {
       // that actually should not happen - but we never know...
@@ -122,7 +120,7 @@ $(document).ready(function () {
     $('#wiki_content').show();
 
     switchEditMode();
-  }
+  };
 
 
 //////////////////// click-handlers
@@ -131,45 +129,45 @@ $(document).ready(function () {
    * Action bound to click() on the edit-"button".
    * Performs an AJAX-GET on the page and registers the callback.
    */
-  function actionEdit() {
+  var actionEdit = function actionEdit () {
     rest.page.read(pageName).done(cb_read);
-  }
+  };
 
   /**
    * Action bound to click() on the delete-"button".
    * Performs an AJAX-DELETE on the page and registers the callback.
    */
-  function actionDelete() {
+  var actionDelete = function actionDelete () {
     rest.page.del(pageName, {
       page: {
         changeMessage: 'Deleted using the webpage...' // TODO ask user for this
       }
     }).done(cb_del);
-  }
+  };
 
   /**
    * Action bound to click() on the save-"button".
    * Performs an AJAX-PUT on the page and registers the callback.
    */
-  function actionSave() {
+  var actionSave = function actionSave () {
     rest.page.update(pageName, {
       page: {
         content: $('#wmd-input').val(),               // TODO check for empty content and ask user if he wants to delete the page
         changeMessage: 'Saved using the webpage...'   // TODO provide textfield for this
       }
     }).done(cb_save);
-  }
+  };
 
   /**
    * Action bound to click() on the edit-"button".
    * Clears and hides the editor and returns to the previously shown page-content.
    */
   // TODO refetch the page and update jsdoc
-  function actionCancel() {
+  var actionCancel = function actionCancel () {
     $('#wiki_editor').empty();
     $('#wiki_navi').show();
     $('#wiki_content').show();
-  }
+  };
 
 
 //////////////////// main-script

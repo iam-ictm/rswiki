@@ -328,6 +328,7 @@ var server = restify.createServer({
   formatters: {
     'text/html': fmt_Html,
     'text/plain': fmt_Text
+//    'text/x-markdown': fmt_Markdown   TODO implement text/x-markdown
     // application/json gets implicitly handled by restify
   }
 });  // TODO SSL...

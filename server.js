@@ -43,7 +43,7 @@
 
 'use strict';
 
-// TODO: make options configurable
+// @todo: make options configurable
 var AUDITLOG = true;
 var LISTENPORT = 8080;
 var WIKIDATA = '/tmp/wikidata';
@@ -67,7 +67,7 @@ var filesystem = require('fs'),
   mimeparse = require('mimeparse'),
   bunyan = require('bunyan');
 
-var logger = bunyan.createLogger({    // ISSUE stuff logged with logger.debug somehow doesn't appear at all...
+var logger = bunyan.createLogger({    // @issue stuff logged with logger.debug somehow doesn't appear at all...
   name: 'wiki',
   stream: process.stdout,
   src: true
@@ -126,7 +126,7 @@ var api_savePage = function api_savePage (req, res, next) {
 
   logger.info({fileName: fileName, page: {name: pageName}}, 'api_savePage: %s', pageName);
 
-  // TODO synchronize the whole thing somehow?
+  // @todo synchronize the whole thing somehow?
   filesystem.writeFile(fileName, page.content, 'utf8', function _writeErr(err) {
     if (err) {
       logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while writing page %s : %s', pageName, err);
@@ -135,7 +135,7 @@ var api_savePage = function api_savePage (req, res, next) {
       var repo = new git.Repository(WIKIDATA);
       var gitFiles = [pageName + '.md'];
 
-//      git.config('user.name', data.user.name, function _gitConfigNameErr (err) {   // BUG overrides global config
+//      git.config('user.name', data.user.name, function _gitConfigNameErr (err) {   // @bug overrides global config
 //        if (gitSuccess(err, callback)) {
 //          git.config('user.email', data.user.email, function _gitConfigEMail(err) {
 //            if (gitSuccess(err, callback)) {
@@ -194,7 +194,7 @@ var api_deletePage = function api_deletePage (req, res, next) {
 
   logger.info({fileName: fileName, page: {name: pageName}}, 'api_deletePage: %s', pageName);
 
-//  git.config('user.name', data.user.name, function _gitConfigNameErr (err) {   // BUG overrides global config
+//  git.config('user.name', data.user.name, function _gitConfigNameErr (err) {   // @bug overrides global config
 //    if (gitSuccess(err, callback)) {
 //      git.config('user.email', data.user.email, function _gitConfigEMailErr (err) {
 //        if (gitSuccess(err, callback)) {
@@ -326,34 +326,34 @@ var server = restify.createServer({
   formatters: {
     'text/html': fmt_Html,
     'text/plain': fmt_Text
-//    'text/x-markdown': fmt_Markdown   TODO implement text/x-markdown
+//    'text/x-markdown': fmt_Markdown   @todo implement text/x-markdown
     // application/json gets implicitly handled by restify
   }
-});  // TODO SSL...
+});  // @todo SSL...
 
 //// server: events
 if (AUDITLOG) {
   server.on('after', restify.auditLogger({log: logger}));
 }
 
-// ISSUE workaround for seemingly improper accept-header-evaluation by restify...
+// @issue workaround for seemingly improper accept-header-evaluation by restify...
 server.pre(function _mimeFix (req, res, next) {
   req.headers.accept = mimeparse.bestMatch(['text/plain','text/html','application/json'], req.headers.accept);
   return next();
 });
 
 //// server: general handlers
-server.use(restify.requestLogger());    // ISSUE requestLogger logs NOTHING!
+server.use(restify.requestLogger());    // @issue requestLogger logs NOTHING!
 server.use(restify.bodyParser());
 server.use(restify.acceptParser(server.acceptable));
 
 //// server: static content
-server.get(/\/static\/?.*/, restify.serveStatic({directory: '.'}));   // ISSUE serveStatic doesn't emit NotFound-event...
+server.get(/\/static\/?.*/, restify.serveStatic({directory: '.'}));   // @issue serveStatic doesn't emit NotFound-event...
 server.get(/\/lib\/?.*/, restify.serveStatic({directory: '.'}));
 server.get(/\/node_modules\/?.*/, restify.serveStatic({directory: '.'}));
 
 //// server: page API
-server.get(PAGEPREFIX + '/:name', api_getPage);   // TODO GET redirect / to a mainpage or provide a list of pages?
+server.get(PAGEPREFIX + '/:name', api_getPage);   // @todo GET redirect / to a mainpage or provide a list of pages?
 server.put(PAGEPREFIX + '/:name', api_savePage);
 server.post(PAGEPREFIX + '/:name', api_savePage);
 server.del(PAGEPREFIX + '/:name', api_deletePage);

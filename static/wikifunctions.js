@@ -140,7 +140,7 @@ $(document).ready(function readyFunction () {
   var actionDelete = function actionDelete () {
     rest.page.del(pageName, {
       page: {
-        changeMessage: 'Deleted using the webpage...' // TODO ask user for this
+        changeMessage: 'Deleted using the webpage...' // @todo ask user for this
       }
     }).done(cb_del);
   };
@@ -152,8 +152,8 @@ $(document).ready(function readyFunction () {
   var actionSave = function actionSave () {
     rest.page.update(pageName, {
       page: {
-        content: $('#wmd-input').val(),               // TODO check for empty content and ask user if he wants to delete the page
-        changeMessage: 'Saved using the webpage...'   // TODO provide textfield for this
+        content: $('#wmd-input').val(),               // @todo check for empty content and ask user if he wants to delete the page
+        changeMessage: 'Saved using the webpage...'   // @todo provide textfield for this
       }
     }).done(cb_save);
   };
@@ -162,7 +162,7 @@ $(document).ready(function readyFunction () {
    * Action bound to click() on the edit-"button".
    * Clears and hides the editor and returns to the previously shown page-content.
    */
-  // TODO refetch the page and update jsdoc
+  // @todo refetch the page and update jsdoc
   var actionCancel = function actionCancel () {
     $('#wiki_editor').empty();
     $('#wiki_navi').show();

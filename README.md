@@ -1,11 +1,17 @@
->wikiname<
+rswiki
+======
 
 A wiki based on node.js and git. A better description as well as a name will follow...
 
 TODOs
-=====
-* package.js?
+-----
+* RDF-style page structure
+    * Prototyping, issue 85
 * Simple navigation based on directory structure
+    * REST-discovery?
+        * <http://restdesc.org>
+        * <http://proquest.safaribooksonline.com/book/-/9781449309497>
+        * <http://ws-rest.org/2012/proc/a4-2-lanthaler.pdf>
 * buildprocess including minimizing, linting, tag-generation
     * <http://blog.millermedeiros.com/node-js-as-a-build-script/>
     * <http://gruntjs.com/>
@@ -24,7 +30,7 @@ TODOs
     * WebID
 
 Features and ideas
-==================
+------------------
 
 * Completly statical export of the whole wiki so that it can serve as CMS
 

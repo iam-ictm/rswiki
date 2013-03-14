@@ -1,8 +1,8 @@
 /**
- * @file restify-based node.js-server for the wiki
+ * @file restify-based node.js-server for rswiki
  * @copyright 2013 Berne University of Applied Sciences (BUAS) -- {@link http://bfh.ch}
  * @author Pascal Mainini <pascal.mainini@bfh.ch>
- * @version 0.1.0
+ * @version 0.1.1
  *
  * ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING !
  *
@@ -11,7 +11,7 @@
  *
  * ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING !
  *
- * This is a node.js-server for the wiki based on restify.
+ * This is a node.js-server for rswiki based on restify.
  * It mainly implements a REST-API for CRUD-operations on a wiki-page by using the appropriate REST-verbs.
  *
  * The REST-verbs are implemented in the functions api_getPage(), api_savePage(), api_deletePage(),
@@ -68,7 +68,7 @@ var filesystem = require('fs'),
   bunyan = require('bunyan');
 
 var logger = bunyan.createLogger({    // @issue stuff logged with logger.debug somehow doesn't appear at all...
-  name: 'wiki',
+  name: 'rswiki',
   stream: process.stdout,
   src: true
 });
@@ -249,7 +249,7 @@ var fmt_Html = function fmt_Html (req, res, body) {
           TITLE(body.statusCode ? body.statusCode  + ': ' + body.message : body.message)
         ),
         BODY(
-          DIV({id: 'wiki_error'}, (body.statusCode ? body.statusCode  + ': ' + body.message : body.message))
+          DIV({id: 'rswiki_error'}, (body.statusCode ? body.statusCode  + ': ' + body.message : body.message))
         )
       )
     ).outerHTML + '\n';
@@ -278,15 +278,15 @@ var fmt_Html = function fmt_Html (req, res, body) {
           SCRIPT({src: CLIENTRESOURCES.wikifunctions})
         ),
         BODY(
-          DIV({id: 'wiki_header'},
-            DIV({id: 'wiki_title'}, body.page.name),
-            DIV({id: 'wiki_navi'},
-              A({id: 'wiki_button_edit', href: '#'}, 'edit'),
-              SPAN({id: 'wiki_button_delete'}, ' | ', A({href: '#'}, 'delete'))
+          DIV({id: 'rswiki_header'},
+            DIV({id: 'rswiki_title'}, body.page.name),
+            DIV({id: 'rswiki_navi'},
+              A({id: 'rswiki_button_edit', href: '#'}, 'edit'),
+              SPAN({id: 'rswiki_button_delete'}, ' | ', A({href: '#'}, 'delete'))
             )
           ),
-          DIV({id: 'wiki_editor'}),
-          DIV({id: 'wiki_content'}, '%#%PAGECONTENT%#%')
+          DIV({id: 'rswiki_editor'}),
+          DIV({id: 'rswiki_content'}, '%#%PAGECONTENT%#%')
         )
       )
     ).outerHTML.replace('%#%PAGECONTENT%#%', pageContent) + '\n';   // or: new pagedown.Converter();

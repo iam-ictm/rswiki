@@ -1,8 +1,8 @@
 /**
- * @file Clientside-functions for the wiki.
+ * @file Clientside-functions for rswiki.
  * @copyright 2013 Berne University of Applied Sciences (BUAS) -- {@link http://bfh.ch}
  * @author Pascal Mainini <pascal.mainini@bfh.ch>
- * @version 0.1.0
+ * @version 0.1.1
  *
  * ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING !
  *
@@ -11,7 +11,7 @@
  *
  * ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING ! WARNING !
  *
- * This file contains all the clientside functionality needed by the wiki.
+ * This file contains all the clientside functionality needed by rswiki.
  *
  * Basically, it handles clicks on the various "buttons" and performs the needed operations in the appropriate action*-functions.
  * Where needed, callbacks for AJAX-calls are implemented in the according cb_*-functions.
@@ -42,13 +42,13 @@ $(document).ready(function readyFunction () {
    * otherwise "edit" and "delete" are shown.
    */
   var switchEditMode = function switchEditMode () {
-    if ($('#wiki_content').text().length === 0) {
-      $('#wiki_content').empty();
-      $('#wiki_button_edit').text('create ' + pageName + '...');
-      $('#wiki_button_delete').hide();
+    if ($('#rswiki_content').text().length === 0) {
+      $('#rswiki_content').empty();
+      $('#rswiki_button_edit').text('create ' + pageName + '...');
+      $('#rswiki_button_delete').hide();
     } else {
-      $('#wiki_button_edit').text('edit');
-      $('#wiki_button_delete').show();
+      $('#rswiki_button_edit').text('edit');
+      $('#rswiki_button_delete').show();
     }
   };
 
@@ -64,24 +64,24 @@ $(document).ready(function readyFunction () {
   var cb_read = function cb_read (data) {
     var pageContent = data.page.content === null ? '' : data.page.content;
 
-    $('#wiki_content').hide();
-    $('#wiki_content').empty();
-    $('#wiki_navi').hide();
-    $('#wiki_editor').append(
+    $('#rswiki_content').hide();
+    $('#rswiki_content').empty();
+    $('#rswiki_navi').hide();
+    $('#rswiki_editor').append(
       DIV(
        DIV({'class': 'wmd-panel'},
         DIV({id: 'wmd-button-bar'}),
           TEXTAREA({'class': 'wmd-input', id: 'wmd-input'}, pageContent),
           DIV(
-            A({id: 'wiki_button_save', href: '#'}, 'save'), ' | ',
-            A({id: 'wiki_button_cancel', href: '#'}, 'cancel'))
+            A({id: 'rswiki_button_save', href: '#'}, 'save'), ' | ',
+            A({id: 'rswiki_button_cancel', href: '#'}, 'cancel'))
         ),
       DIV({id: 'wmd-preview', 'class': 'wmd-panel wmd-preview'}))
     );
-    $('#wiki_editor').show();
+    $('#rswiki_editor').show();
 
-    $('#wiki_button_save').click(actionSave);
-    $('#wiki_button_cancel').click(actionCancel);
+    $('#rswiki_button_save').click(actionSave);
+    $('#rswiki_button_cancel').click(actionCancel);
 
     var converter = Markdown.getSanitizingConverter();
     var editor = new Markdown.Editor(converter);
@@ -95,12 +95,12 @@ $(document).ready(function readyFunction () {
    * @param   {Object}   data   JSON received, containing our page-object.
    */
   var cb_save = function cb_save (data) {
-    $('#wiki_editor').empty();
-    $('#wiki_editor').hide();
-    $('#wiki_content').empty();
-    $('#wiki_content').append(Markdown.getSanitizingConverter().makeHtml(data.page.content));
-    $('#wiki_content').show();
-    $('#wiki_navi').show();
+    $('#rswiki_editor').empty();
+    $('#rswiki_editor').hide();
+    $('#rswiki_content').empty();
+    $('#rswiki_content').append(Markdown.getSanitizingConverter().makeHtml(data.page.content));
+    $('#rswiki_content').show();
+    $('#rswiki_navi').show();
 
     switchEditMode();
   };
@@ -112,12 +112,12 @@ $(document).ready(function readyFunction () {
    * @param   {Object}   data   JSON received, containing our page-object.
    */
   var cb_del = function cb_del (data) {
-    $('#wiki_content').empty();
+    $('#rswiki_content').empty();
     if (data.page.content !== null) {
       // that actually should not happen - but we never know...
-      $('#wiki_content').append(Markdown.getSanitizingConverter().makeHtml(data.page.content));
+      $('#rswiki_content').append(Markdown.getSanitizingConverter().makeHtml(data.page.content));
     }
-    $('#wiki_content').show();
+    $('#rswiki_content').show();
 
     switchEditMode();
   };
@@ -164,9 +164,9 @@ $(document).ready(function readyFunction () {
    */
   // @todo refetch the page and update jsdoc
   var actionCancel = function actionCancel () {
-    $('#wiki_editor').empty();
-    $('#wiki_navi').show();
-    $('#wiki_content').show();
+    $('#rswiki_editor').empty();
+    $('#rswiki_navi').show();
+    $('#rswiki_content').show();
   };
 
 
@@ -174,7 +174,7 @@ $(document).ready(function readyFunction () {
 
   switchEditMode();
 
-  $('#wiki_button_edit').click(actionEdit);
-  $('#wiki_button_delete').click(actionDelete);
+  $('#rswiki_button_edit').click(actionEdit);
+  $('#rswiki_button_delete').click(actionDelete);
 
 });

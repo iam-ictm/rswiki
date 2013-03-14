@@ -1,7 +1,7 @@
 rswiki
 ======
 
-A wiki based on node.js and git. A better description as well as a name will follow...
+A RESTful, semantic wiki...
 
 TODOs
 -----

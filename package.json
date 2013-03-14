@@ -1,0 +1,46 @@
+{
+  "name": "rswiki",
+  "version": "0.1.1",
+  "description": "An approach for a RESTful and semantic wiki",
+  "keywords": [
+    "semantic",
+    "wiki",
+    "rest",
+    "restful",
+    "semantic web", 
+    "semweb", 
+    "linked data"
+  ],
+  "homepage": "http://forschung.ti.bfh.ch/de/institute/institute_for_ict_based_management",
+  "main": "server.js",
+  "private": "true",
+  "directories": {
+    "test":   "./tests",
+    "lib":    "./lib",
+    "static": "./static"
+  },
+  "engines" : { "node" : ">=0.8.18" },
+  "dependencies": {
+    "pagedown":  "~1.0.0",
+    "domo":      "~0.5.8",
+    "mimeparse": "~0.1.4",
+    "bunyan":    "~0.18.2",
+    "restify":   "~2.2.1",
+    "gitty":     "~1.1.6"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@semweb.bfh.ch:wiki-code"
+  },
+  "author": {
+    "name":  "Pascal Mainini",
+    "email": "pascal.mainini@bfh.ch",
+    "url":   "http://forschung.ti.bfh.ch/de/institute/institute_for_ict_based_management"
+  },
+  "license": "Proprietary, see LICENSE",
+  "readmeFilename": "README.md",
+}

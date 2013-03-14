@@ -37,8 +37,6 @@
 /*jshint node:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, undef:true, unused: true, trailing:true, white:false */
 /*global DOCUMENT:true, HTML:true, HEAD:true, BODY:true, META:true, TITLE:true, LINK:true, SCRIPT:true, A:true, DIV:true SPAN:true */
 
-// TODO propper NFE syntax?
-
 /***********************************************************
  * Initialisation
  **********************************************************/
@@ -90,7 +88,7 @@ var logger = bunyan.createLogger({    // ISSUE stuff logged with logger.debug so
  * @param   {Function}          next  Next callback in the chain to call
  * @returns {Object}            The return-value of the next callback in the chain or an Error if something failed.
  */
-var api_getPage = function (req, res, next) {
+var api_getPage = function api_getPage (req, res, next) {
   var pageName = req.params.name;
   var fileName = WIKIDATA + '/' + pageName + '.md';
 
@@ -121,7 +119,7 @@ var api_getPage = function (req, res, next) {
  * @param   {Function}          next  Next callback in the chain to call
  * @returns {Object}            Forwards to api_getPage WITHOUT returning it (api_getPage calls next callback) or an Error if something fails.
  */
-var api_savePage = function (req, res, next) {
+var api_savePage = function api_savePage (req, res, next) {
   var pageName = req.params.name;
   var page = req.params.page;
   var fileName = WIKIDATA + '/' + pageName + '.md';
@@ -186,7 +184,7 @@ var api_savePage = function (req, res, next) {
  * @param   {Function}          next  Next callback in the chain to call
  * @returns {Object}            The return-value of the next callback in the chain or an Error if something failed.
  */
-var api_deletePage = function (req, res, next) {
+var api_deletePage = function api_deletePage (req, res, next) {
   var pageName = req.params.name;
   var page = req.params.page;
   var fileName = WIKIDATA + '/' + pageName + '.md';
@@ -240,7 +238,7 @@ var api_deletePage = function (req, res, next) {
  * @param   {Object}            body  The effective wiki-page as returned by the api_*-methods as JSON.
  * @returns {String}            HTML-representation of the page (or the Error)
  */
-var fmt_Html = function (req, res, body) {
+var fmt_Html = function fmt_Html (req, res, body) {
 
   if (body instanceof Error) {
 
@@ -304,7 +302,7 @@ var fmt_Html = function (req, res, body) {
  * @param   {Object}            body  The effective wiki-page as returned by the api_*-methods as JSON.
  * @returns {String}            Plaintext-representation of the page (or the Error)
  */
-var fmt_Text = function (req, res, body) {
+var fmt_Text = function fmt_Text (req, res, body) {
   if (body instanceof Error) {
     return 'Error!\n\n' +
       (body.statusCode ? 'Statuscode: ' + body.statusCode + '\n' : '') +

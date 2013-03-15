@@ -43,12 +43,6 @@
 
 'use strict';
 
-// @todo: make options configurable
-var AUDITLOG = true;
-var LISTENPORT = 8080;
-var WIKIDATA = '/tmp/wikidata';
-var PAGEPREFIX = '/page';
-
 var CLIENTRESOURCES = {domo: '/node_modules/domo/lib/domo.js',
                         md_converter: '/node_modules/pagedown/Markdown.Converter.js',
                         md_sanitizer: '/node_modules/pagedown/Markdown.Sanitizer.js',
@@ -65,6 +59,7 @@ var filesystem = require('fs'),
   restify = require('restify'),
   git = require('gitty'),
   mimeparse = require('mimeparse'),
+  nconf = require('nconf'),
   bunyan = require('bunyan');
 
 var logger = bunyan.createLogger({    // @issue stuff logged with logger.debug somehow doesn't appear at all...
@@ -90,7 +85,7 @@ var logger = bunyan.createLogger({    // @issue stuff logged with logger.debug s
  */
 var api_getPage = function api_getPage (req, res, next) {
   var pageName = req.params.name;
-  var fileName = WIKIDATA + '/' + pageName + '.md';
+  var fileName = nconf.get('wiki:repository') + '/' + pageName + '.md';
 
   logger.info({fileName: fileName, page: {name: pageName}}, 'api_getPage: %s', pageName);
 
@@ -122,7 +117,7 @@ var api_getPage = function api_getPage (req, res, next) {
 var api_savePage = function api_savePage (req, res, next) {
   var pageName = req.params.name;
   var page = req.params.page;
-  var fileName = WIKIDATA + '/' + pageName + '.md';
+  var fileName = nconf.get('wiki:repository') + '/' + pageName + '.md';
 
   logger.info({fileName: fileName, page: {name: pageName}}, 'api_savePage: %s', pageName);
 
@@ -132,7 +127,7 @@ var api_savePage = function api_savePage (req, res, next) {
       logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while writing page %s : %s', pageName, err);
       return next(err);
     } else {
-      var repo = new git.Repository(WIKIDATA);
+      var repo = new git.Repository(nconf.get('wiki:repository'));
       var gitFiles = [pageName + '.md'];
 
 //      git.config('user.name', data.user.name, function _gitConfigNameErr (err) {   // @bug overrides global config
@@ -187,9 +182,9 @@ var api_savePage = function api_savePage (req, res, next) {
 var api_deletePage = function api_deletePage (req, res, next) {
   var pageName = req.params.name;
   var page = req.params.page;
-  var fileName = WIKIDATA + '/' + pageName + '.md';
+  var fileName = nconf.get('wiki:repository') + '/' + pageName + '.md';
 
-  var repo = new git.Repository(WIKIDATA);
+  var repo = new git.Repository(nconf.get('wiki:repository'));
   var gitFiles = [pageName + '.md'];
 
   logger.info({fileName: fileName, page: {name: pageName}}, 'api_deletePage: %s', pageName);
@@ -320,6 +315,12 @@ var fmt_Text = function fmt_Text (req, res, body) {
  * Main application
  **********************************************************/
 
+//////////////////// load configuration
+
+nconf.argv().env().file({
+  file: 'config.json'
+});
+
 //////////////////// setup server
 
 var server = restify.createServer({
@@ -332,7 +333,7 @@ var server = restify.createServer({
 });  // @todo SSL...
 
 //// server: events
-if (AUDITLOG) {
+if (nconf.get('server:auditlog')) {
   server.on('after', restify.auditLogger({log: logger}));
 }
 
@@ -353,12 +354,12 @@ server.get(/\/lib\/?.*/, restify.serveStatic({directory: '.'}));
 server.get(/\/node_modules\/?.*/, restify.serveStatic({directory: '.'}));
 
 //// server: page API
-server.get(PAGEPREFIX + '/:name', api_getPage);   // @todo GET redirect / to a mainpage or provide a list of pages?
-server.put(PAGEPREFIX + '/:name', api_savePage);
-server.post(PAGEPREFIX + '/:name', api_savePage);
-server.del(PAGEPREFIX + '/:name', api_deletePage);
+server.get(nconf.get('wiki:pagePrefix') + '/:name', api_getPage);   // @todo GET redirect / to a mainpage or provide a list of pages?
+server.put(nconf.get('wiki:pagePrefix') + '/:name', api_savePage);
+server.post(nconf.get('wiki:pagePrefix') + '/:name', api_savePage);
+server.del(nconf.get('wiki:pagePrefix') + '/:name', api_deletePage);
 
 //// start server
-server.listen(LISTENPORT, function listenCallback () {
+server.listen(nconf.get('server:port'), function listenCallback () {
   logger.info({serverName: server.name, serverURL: server.url}, '%s listening at %s.', server.name, server.url);
 });

@@ -5,7 +5,6 @@ A RESTful, semantic wiki...
 
 TODOs
 -----
-* Make configureable
 * Test self-installation + send to ktk
 * unit-testing 
     * <https://en.wikipedia.org/wiki/List_of_unit_testing_frameworks#JavaScript>

@@ -28,6 +28,7 @@
     "bunyan":      "~0.18.2",
     "restify":     "~2.2.1",
     "request":     "~2.16.2",
+    "nconf":       "~0.6.7",
     "gitty":       "~1.1.6"
   },
   "scripts": {

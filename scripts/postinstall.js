@@ -29,7 +29,7 @@ var request = require('request'),
 
 var EXTERNAL_FILES = [
   ['lib/jquery.js','http://code.jquery.com/jquery-1.9.1.min.js'],
-  ['lib/jquery.rest.js','http://raw.github.com/lyconic/jquery.rest/master/jquery.rest.js'],
+  ['lib/jquery.rest.js','http://raw.github.com/jpillora/jquery.rest/gh-pages/dist/jquery.rest.min.js'],
   ['lib/wmd-editor/Markdown.Editor.js', 'http://raw.github.com/ujifgc/pagedown/master/Markdown.Editor.js'],
   ['lib/wmd-editor/wmd-buttons.png','http://raw.github.com/ujifgc/pagedown/master/wmd-buttons.png']
 ];

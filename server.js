@@ -344,7 +344,7 @@ server.pre(function _mimeFix (req, res, next) {
 });
 
 //// server: general handlers
-server.use(restify.requestLogger());    // @issue requestLogger logs NOTHING!
+server.use(restify.requestLogger());    // @issue requestLogger logs NOTHING! Also: 500 due to not set accept-header gets not logged!
 server.use(restify.bodyParser());
 server.use(restify.acceptParser(server.acceptable));
 

@@ -19,7 +19,6 @@
  * @todo test functions directly in server.js (not via HTTP)?
  * @todo test data of other content-types via CRUD?
  * @todo tests for frontend-code?
- * @todo start server directly from within the tests?
  */
 
 /*jshint node:true, bitwise:true, curly:true, immed:true, indent:2, latedef:true, newcap:true, noarg: true, noempty:true, nonew:true, quotmark:single, undef:true, unused: true, trailing:true, white:false */
@@ -121,7 +120,10 @@ var BASE_URI = 'http://127.0.0.1:' + nconf.get('server:port') + '/';
  */
 suite('Basic HTTP tests', function _suite () {
 
-  var siteStructure = [
+  // @issue disables some tests, somehow they break restify...
+  var _performDangerousTests = false;
+
+  var _siteStructure = [
     [
       [BASE_URI, ['GET', null, 500]],
       [BASE_URI, ['GET', 'text/plain', 404]],
@@ -214,11 +216,10 @@ suite('Basic HTTP tests', function _suite () {
       [BASE_URI + 'lib/', ['GET', 'application/json', 404]],
       [BASE_URI + 'lib/', ['GET', 'foo/bar', 404]],
 
-      // @issue disabled the following, somehow breaks restify...
-      [BASE_URI + 'lib/', ['HEAD', null, 405], false],
-      [BASE_URI + 'lib/', ['POST', null, 405], false],
-      [BASE_URI + 'lib/', ['PUT', null, 405], false],
-      [BASE_URI + 'lib/', ['DELETE', null, 405], false],
+      [BASE_URI + 'lib/', ['HEAD', null, 405], _performDangerousTests],
+      [BASE_URI + 'lib/', ['POST', null, 405], _performDangerousTests],
+      [BASE_URI + 'lib/', ['PUT', null, 405], _performDangerousTests],
+      [BASE_URI + 'lib/', ['DELETE', null, 405], _performDangerousTests],
 
       [BASE_URI + 'lib/', ['HEAD', 'text/html', 405]],
       [BASE_URI + 'lib/', ['POST', 'text/html', 405]],
@@ -249,11 +250,10 @@ suite('Basic HTTP tests', function _suite () {
       [BASE_URI + 'lib/jquery.js', ['GET', 'application/json', 200]],
       [BASE_URI + 'lib/jquery.js', ['GET', 'foo/bar', 200]],
 
-      // @issue disabled the following, somehow breaks restify...
-      [BASE_URI + 'lib/jquery.js', ['HEAD', null, 405], false],
-      [BASE_URI + 'lib/jquery.js', ['POST', null, 405], false],
-      [BASE_URI + 'lib/jquery.js', ['PUT', null, 405], false],
-      [BASE_URI + 'lib/jquery.js', ['DELETE', null, 405], false],
+      [BASE_URI + 'lib/jquery.js', ['HEAD', null, 405], _performDangerousTests],
+      [BASE_URI + 'lib/jquery.js', ['POST', null, 405], _performDangerousTests],
+      [BASE_URI + 'lib/jquery.js', ['PUT', null, 405], _performDangerousTests],
+      [BASE_URI + 'lib/jquery.js', ['DELETE', null, 405], _performDangerousTests],
 
       [BASE_URI + 'lib/jquery.js', ['HEAD', 'text/html', 405]],
       [BASE_URI + 'lib/jquery.js', ['POST', 'text/html', 405]],
@@ -267,11 +267,10 @@ suite('Basic HTTP tests', function _suite () {
       [BASE_URI + 'node_modules/', ['GET', 'application/json', 404]],
       [BASE_URI + 'node_modules/', ['GET', 'foo/bar', 404]],
 
-      // @issue disabled the following, somehow breaks restify...
-      [BASE_URI + 'node_modules/', ['HEAD', null, 405], false],
-      [BASE_URI + 'node_modules/', ['POST', null, 405], false],
-      [BASE_URI + 'node_modules/', ['PUT', null, 405], false],
-      [BASE_URI + 'node_modules/', ['DELETE', null, 405], false],
+      [BASE_URI + 'node_modules/', ['HEAD', null, 405], _performDangerousTests],
+      [BASE_URI + 'node_modules/', ['POST', null, 405], _performDangerousTests],
+      [BASE_URI + 'node_modules/', ['PUT', null, 405], _performDangerousTests],
+      [BASE_URI + 'node_modules/', ['DELETE', null, 405], _performDangerousTests],
 
       [BASE_URI + 'node_modules/', ['HEAD', 'text/html', 405]],
       [BASE_URI + 'node_modules/', ['POST', 'text/html', 405]],
@@ -365,7 +364,7 @@ suite('Basic HTTP tests', function _suite () {
     ]
   ];
 
-  siteStructure.forEach(function _iterateSite (uri) {
+  _siteStructure.forEach(function _iterateSite (uri) {
     uri.forEach(function _iterateURI (current) {
 
       var runTest = true;

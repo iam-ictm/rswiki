@@ -121,7 +121,7 @@ var api_savePage = function api_savePage (req, res, next) {
 
   logger.info({fileName: fileName, page: {name: pageName}}, 'api_savePage: %s', pageName);
 
-  // @todo synchronize the whole thing somehow?
+  // @todo maybe better use  fs.createWriteStream? (for "synchronisation")
   filesystem.writeFile(fileName, page.content, 'utf8', function _writeErr(err) {
     if (err) {
       logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while writing page %s : %s', pageName, err);

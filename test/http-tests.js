@@ -76,7 +76,6 @@ var _request = function _request (method, uri, accept, callback, body) {
  * @param   {String}      uri       URI to request
  * @param   {String}      accept    Accept-header (i.e. content-type) to set
  * @param   {Function}    callback  Callback uppon completion of request
- * @param   {String}      [body]    Body to send in PUT/POST etc. requests
  */
 var _getRequest = function _getRequest (uri, accept, callback) {
   return _request('GET', uri, accept, callback);
@@ -364,7 +363,7 @@ suite('Basic HTTP tests', function _suite () {
       [BASE_URI + 'page/', ['PUT', 'text/html', 404]],
       [BASE_URI + 'page/', ['DELETE', 'text/html', 404]]
     ]
-   ];
+  ];
 
   siteStructure.forEach(function _iterateSite (uri) {
     uri.forEach(function _iterateURI (current) {
@@ -376,9 +375,8 @@ suite('Basic HTTP tests', function _suite () {
       }
 
       if (runTest) {
-        /**
-         * mocha-test being run for every configured request of all URI's specified in siteStructure.
-         */
+
+        // mocha-test being run for every configured request of all URI's specified in siteStructure.
         test(current[1][0] + ' ' + current[0] + ' with accept-header "' + current[1][1] + '" should return ' + current[1][2], function _test (done) {
           _request(current[1][0], current[0], current[1][1], function _response (error, response) {
             if (error) {
@@ -389,6 +387,7 @@ suite('Basic HTTP tests', function _suite () {
             done();
           });
         });
+
       }
 
     });
@@ -400,13 +399,17 @@ suite('Basic HTTP tests', function _suite () {
  */
 suite('Page CRUD', function _suite () {
 
-  var page = BASE_URI + 'page/mocha';
+  var _PAGE = 'mocha';
+  var _PAGE_URI = BASE_URI + 'page/';
 
   /**
-   * mocha-test which checks that the testpage does not yet exist
+   * A test-function which checks if a given page is empty.
+   *
+   * @param   {Function}    done    mocha-callback to call when the test has finished
+   * @param   {String}      page    Name of the page
    */
-  test(page + ' should not exist', function _test (done) {
-    _getRequest(page, 'application/json', function _response (error, response, body) {
+  var _pageEmptyTest = function _pageEmptyTest (done, page) {
+    _getRequest(_PAGE_URI + page, 'application/json', function _response (error, response, body) {
       if (error) {
         throw error;
       }
@@ -422,29 +425,17 @@ suite('Page CRUD', function _suite () {
 
       done();
     });
-  });
+  };
 
   /**
-   * mocha-test which creates the test-page
+   * A test-function which checks if the content of a given page matches the given content
+   *
+   * @param   {Function}    done    mocha-callback to call when the test has finished
+   * @param   {String}      page    Name of the page
+   * @param   {String}      content Content to check the page for
    */
-  test('Create ' + page, function _test (done) {
-    var pageContent = {page:{content:'mocha was here!',name:'mocha', changeMessage: 'mocha create!'}};
-
-    _putRequest(page, 'application/json', JSON.stringify(pageContent), function _response (error, response) {
-      if (error) {
-        throw error;
-      }
-
-      assert.equal(response.statusCode, 200);
-      done();
-    });
-  });
-
-  /**
-   * mocha-test which refetches the testpage and compares it's contents
-   */
-  test(page + ' should now contain "mocha was here!"', function _test (done) {
-    _getRequest(page, 'application/json', function _response (error, response, body) {
+  var _pageContentTest = function _pageContentTest (done, page, content) {
+    _getRequest(_PAGE_URI + page, 'application/json', function _response (error, response, body) {
       if (error) {
         throw error;
       }
@@ -456,19 +447,24 @@ suite('Page CRUD', function _suite () {
       assert(data.page, 'body contains page-object');
       assert(data.page.name, 'page object has name-attribute');
       assert.equal(data.page.name, 'mocha', 'page.name is "mocha"');
-      assert.equal(data.page.content, 'mocha was here!', 'page.content contains "mocha was here!"');
+      assert.equal(data.page.content, content, 'page.content contains "' + content + '"');
 
       done();
     });
-  });
+  };
 
   /**
-   * mocha-test which updates the testpage
+   * A test-function which creates or updates (PUT) a given page
+   *
+   * @param   {Function}    done            mocha-callback to call when the test has finished
+   * @param   {String}      page            Name of the page
+   * @param   {String}      content         Content to set the page to
+   * @param   {String}      changeMessage   Message used for the commit in the wiki-git
    */
-  test('Update ' + page, function _test (done) {
-    var pageContent = {page:{content:'mocha will soon be gone!',name:'mocha', changeMessage: 'mocha update!'}};
-  
-    _putRequest(page, 'application/json', JSON.stringify(pageContent), function _response (error, response) {
+  var _pageUpdateTest = function _pageUpdateTest (done, page, content, changeMessage) {
+    var pageContent = {page:{content:content, name:page, changeMessage: changeMessage}};
+
+    _putRequest(_PAGE_URI + page, 'application/json', JSON.stringify(pageContent), function _response (error, response) {
       if (error) {
         throw error;
       }
@@ -476,37 +472,19 @@ suite('Page CRUD', function _suite () {
       assert.equal(response.statusCode, 200);
       done();
     });
-  });
+  };
 
   /**
-   * mocha-test which refetches the testpage and compares it's contents
+   * A test-function which deletes a given page
+   *
+   * @param   {Function}    done            mocha-callback to call when the test has finished
+   * @param   {String}      page            Name of the page
+   * @param   {String}      changeMessage   Message used for the commit in the wiki-git
    */
-  test(page + ' should now contain "mocha will soon be gone!"', function _test (done) {
-    _getRequest(page, 'application/json', function _response (error, response, body) {
-      if (error) {
-        throw error;
-      }
+  var _pageDeleteTest = function _pageDeleteTest (done, page, changeMessage) {
+    var pageContent = {page:{name:page, changeMessage: changeMessage}};
 
-      assert.equal(200, response.statusCode);
-      assert(body, 'Received response body');
-
-      var data = JSON.parse(body);
-      assert(data.page, 'body contains page-object');
-      assert(data.page.name, 'page object has name-attribute');
-      assert.equal(data.page.name, 'mocha', 'page.name is "mocha"');
-      assert.equal(data.page.content, 'mocha will soon be gone!', 'page.content contains "mocha was here!"');
-
-      done();
-    });
-  });
-
-  /**
-   * mocha-test which deletes the testpage
-   */
-  test('Delete ' + page, function _test (done) {
-    var pageContent = {page:{name:'mocha', changeMessage: 'mocha delete!'}};
-  
-    _delRequest(page, 'application/json', JSON.stringify(pageContent), function _response (error, response) {
+    _delRequest(_PAGE_URI + page, 'application/json', JSON.stringify(pageContent), function _response (error, response) {
       if (error) {
         throw error;
       }
@@ -514,5 +492,41 @@ suite('Page CRUD', function _suite () {
       assert.equal(response.statusCode, 200);
       done();
     });
+  };
+
+  // Check that the page doesn't exist yet
+  test(_PAGE_URI + _PAGE + ' should not exist', function _test(done) {
+    _pageEmptyTest(done, _PAGE);
   });
+
+  // Create the page
+  test('Create ' + _PAGE_URI + _PAGE, function _test(done) {
+    _pageUpdateTest(done, _PAGE, 'mocha was here!', 'Created by mocha!');
+  });
+
+  // Check if page has been created correctly
+  test(_PAGE_URI + _PAGE + ' should now contain "mocha was here!"', function _test (done) {
+    _pageContentTest(done, _PAGE, 'mocha was here!');
+  });
+
+  // Update the page
+  test('Update ' + _PAGE_URI + _PAGE, function _test(done) {
+    _pageUpdateTest(done, _PAGE, 'mocha will soon be gone!', 'Updated by mocha!');
+  });
+
+  // Check if the page has been correctly updated
+  test(_PAGE_URI + _PAGE + ' should now contain "mocha will soon be gone!"', function _test (done) {
+    _pageContentTest(done, _PAGE, 'mocha will soon be gone!');
+  });
+
+  // Delete the page
+  test('Delete ' + _PAGE_URI + _PAGE, function _test (done) {
+    _pageDeleteTest(done, _PAGE, 'Deleted by mocha!');
+  });
+
+  // Check if the page has been properly deleted
+  test(_PAGE_URI + _PAGE + ' should not exist', function _test(done) {
+    _pageEmptyTest(done, _PAGE);
+  });
+
 });

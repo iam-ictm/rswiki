@@ -21,6 +21,11 @@ REST, hypermedia
 
     * <https://github.com/Graphity/graphity-ldp/wiki/Linked-Data-server-specification>
 
+* Books
+    * <http://proquest.safaribooksonline.com/9781449309497>
+    * <http://proquest.safaribooksonline.com/book/web-development/web-services/9781449383312?bookview=toc>
+        * <https://github.com/mamund/Building-Hypermedia-APIs>
+
 RDF
 ===
 
@@ -43,6 +48,7 @@ RDF
         * Fork von js3, wohl etwas bessere Node-Integration (gibt ein npm modul)
     * <https://github.com/Acubed/node-rdf>
         * Fork & wohl etwas Weiterentwicklung von RDF.js
+    * <https://github.com/RubenVerborgh/node-n3>
     * <https://github.com/Acubed/sparql-spin-js3>
         * SPIN/js3 Interface
     * <http://spinrdf.org/>

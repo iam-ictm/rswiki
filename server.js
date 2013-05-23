@@ -52,6 +52,9 @@ var CLIENTRESOURCES = {domo: '/node_modules/domo/lib/domo.js',
                         wikistyles: '/static/wikistyles.css',
                         wikifunctions: '/static/wikifunctions.js'};
 
+var USER = {name: 'The wiki-user',
+            email: 'a@b.c'};
+
 require('domo').global();
 
 var filesystem = require('fs'),
@@ -72,6 +75,38 @@ var logger = bunyan.createLogger({    // @issue stuff logged with logger.debug s
 /***********************************************************
  * Function definitions
  **********************************************************/
+
+//////////////////// helpers
+
+/**
+ * Configures name and email of the committing user in gitty's Repository.
+ * Extends Repository's prototype. This function was needed because gitty
+ * itself only provides a function for changing global git configuration.
+ *
+ * @param   {String}            name   The name of the committer to set
+ * @param   {String}            email  The email-address of the committer to set
+ * @param   {Function}          cb     Callback
+ */
+git.Repository.prototype.setCommitter = function setCommitter (name, email, cb) {
+  var repo = this;
+
+  new git.Command(repo.path, 'config', ['user.name'], '"' + name + '"').exec(function _cmdErri (error, stdout, stderr) {
+    var err = error | stderr;
+    if (err) {
+      cb(err);
+    } else {
+      new git.Command(repo.path, 'config', ['user.email'], '"' + email + '"').exec(function _cmdErr (error, stdout, stderr) {
+        var err = error | stderr;
+        if (err) {
+          cb(err);
+        }
+      });
+    }
+  });
+
+  cb();
+};
+
 
 //////////////////// REST-API
 
@@ -130,41 +165,39 @@ var api_savePage = function api_savePage (req, res, next) {
       var repo = new git.Repository(nconf.get('wiki:repository'));
       var gitFiles = [pageName + '.md'];
 
-//      git.config('user.name', data.user.name, function _gitConfigNameErr (err) {   // @bug overrides global config
-//        if (gitSuccess(err, callback)) {
-//          git.config('user.email', data.user.email, function _gitConfigEMail(err) {
-//            if (gitSuccess(err, callback)) {
-              repo.add(gitFiles, function _gitAddErr (err) {
+      repo.setCommitter(USER.name, USER.email, function _gitSetCommitterErr (err) {
+        if (err) {
+          logger.error({error: err, fileName: fileName, page: {name: pageName}, user: USER}, 'Error occured while setting git-commit-user, aborting!', err);
+        } else {
+          repo.add(gitFiles, function _gitAddErr (err) {
+            if (err) {
+              logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while adding to git, trying to unstage: %s', err);
+              repo.unstage(gitFiles, function _gitUnstageErr (err) {
+                  if(err) {
+                    logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while unstaging: %s', err);
+                    return next(err);
+                  }
+                });
+              return next(err);
+            } else {
+              repo.commit(page.changeMessage, function _gitCommitErr (err) {
                 if (err) {
-                  logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while adding to git, trying to unstage: %s', err);
+                  logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while commiting to git, trying to unstage: %s', err);
                   repo.unstage(gitFiles, function _gitUnstageErr (err) {
-                      if(err) {
+                      if (err) {
                         logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while unstaging: %s', err);
                         return next(err);
                       }
                     });
                   return next(err);
                 } else {
-                  repo.commit(page.changeMessage, function _gitCommitErr (err) {
-                    if (err) {
-                      logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while commiting to git, trying to unstage: %s', err);
-                      repo.unstage(gitFiles, function _gitUnstageErr (err) {
-                          if (err) {
-                            logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error occured while unstaging: %s', err);
-                            return next(err);
-                          }
-                        });
-                      return next(err);
-                    } else {
-                      logger.info({fileName: fileName, page: {name: pageName}}, 'Successfully committed page %s.', pageName);
-                    }
-                  });
+                  logger.info({fileName: fileName, page: {name: pageName}}, 'Successfully committed page %s.', pageName);
                 }
               });
-//            }
-//          });
-//        }
-//      });
+            }
+          });
+        }
+      });
     }
   });
 
@@ -189,37 +222,35 @@ var api_deletePage = function api_deletePage (req, res, next) {
 
   logger.info({fileName: fileName, page: {name: pageName}}, 'api_deletePage: %s', pageName);
 
-//  git.config('user.name', data.user.name, function _gitConfigNameErr (err) {   // @bug overrides global config
-//    if (gitSuccess(err, callback)) {
-//      git.config('user.email', data.user.email, function _gitConfigEMailErr (err) {
-//        if (gitSuccess(err, callback)) {
-          repo.remove(gitFiles, function _gitRemoveErr (err) {
+  repo.setCommitter(USER.name, USER.email, function _gitSetCommitterErr (err) {
+    if (err) {
+      logger.error({error: err, fileName: fileName, page: {name: pageName}, user: USER}, 'Error occured while setting git-commit-user, aborting!', err);
+    } else {
+      repo.remove(gitFiles, function _gitRemoveErr (err) {
+        if (err) {
+          logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error while removing page %s from git: %s', pageName, err);
+          return next(err);
+        } else {
+          repo.commit(page.changeMessage, function _gitCommitErr (err) {
             if (err) {
-              logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error while removing page %s from git: %s', pageName, err);
+              logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error while committing to git: %s', err);
               return next(err);
             } else {
-              repo.commit(page.changeMessage, function _gitCommitErr (err) {
+              filesystem.unlink(fileName, function _unlinkErr (err) {
                 if (err) {
-                  logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error while committing to git: %s', err);
+                  logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error while deleting page %s : %s', pageName, err);
                   return next(err);
                 } else {
-                  filesystem.unlink(fileName, function _unlinkErr (err) {
-                    if (err) {
-                      logger.error({error: err, fileName: fileName, page: {name: pageName}}, 'Error while deleting page %s : %s', pageName, err);
-                      return next(err);
-                    } else {
-                      logger.info({fileName: fileName, page: {name: pageName}}, 'Successfully deleted page %s.', pageName);
-                      return next({page: {content: null, name: pageName}});
-                    }
-                  });
+                  logger.info({fileName: fileName, page: {name: pageName}}, 'Successfully deleted page %s.', pageName);
+                  return next({page: {content: null, name: pageName}});
                 }
               });
             }
           });
-//        }
-//      });
-//    }
-//  });
+        }
+      });
+    }
+  });
 };
 
 

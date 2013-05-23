@@ -6,7 +6,6 @@ A RESTful, semantic wiki...
 TODOs
 -----
 * simple navigation based on directory structure
-* fix git-config-bug
 * authentication
     * WebID
 ----

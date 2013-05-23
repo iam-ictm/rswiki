@@ -8,6 +8,8 @@ REST, hypermedia
 
 * In RDF
     * <http://restdesc.org> / <http://restdesc.org/about/descriptions>
+    * <http://www.markus-lanthaler.com/hydra/spec/latest/core/>
+    * <https://github.com/fusepool/fusepool-ecs/blob/master/ontologies/src/main/resources/eu/fusepool/ecs/ontologies/ecs.ttl>
     * <https://en.wikipedia.org/wiki/Link_relation>
     * <http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven>
     * <http://lists.w3.org/Archives/Public/public-ldp/2013Mar/0045.html>
@@ -20,6 +22,9 @@ REST, hypermedia
     * <https://github.com/fidian/hapier>
 
     * <https://github.com/Graphity/graphity-ldp/wiki/Linked-Data-server-specification>
+
+* Implementation
+    * <https://en.wikipedia.org/wiki/Atom_%28standard%29>
 
 * Books
     * <http://proquest.safaribooksonline.com/9781449309497>

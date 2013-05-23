@@ -16,6 +16,7 @@
  * - The HTTP-server of rswiki in general
  * - CRUD-operations on the page-RESTful-API
  * 
+ * @todo start server directly from within the tests
  * @todo test functions directly in server.js (not via HTTP)?
  * @todo test data of other content-types via CRUD?
  * @todo tests for frontend-code?

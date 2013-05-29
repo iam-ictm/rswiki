@@ -15,6 +15,7 @@ REST, hypermedia
     * <http://lists.w3.org/Archives/Public/public-ldp/2013Mar/0045.html>
     * <http://ws-rest.org/2012/proc/a4-2-lanthaler.pdf>
     * <https://static.googleusercontent.com/external_content/untrusted_dlcp/research.google.com/en//pubs/archive/37427.pdf>
+    * <http://www.w3.org/TR/void/> (eventuell via /.well-known)
 
 * In JSON
     * <http://stateless.co/hal_specification.html>
@@ -25,6 +26,7 @@ REST, hypermedia
 
 * Implementation
     * <https://en.wikipedia.org/wiki/Atom_%28standard%29>
+    * <https://tools.ietf.org/html/rfc6690>
 
 * Books
     * <http://proquest.safaribooksonline.com/9781449309497>

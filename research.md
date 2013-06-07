@@ -16,6 +16,7 @@ REST, hypermedia
     * <http://ws-rest.org/2012/proc/a4-2-lanthaler.pdf>
     * <https://static.googleusercontent.com/external_content/untrusted_dlcp/research.google.com/en//pubs/archive/37427.pdf>
     * <http://www.w3.org/TR/void/> (eventuell via /.well-known)
+    * <http://folk.uio.no/kjekje/2012/> 
 
 * In JSON
     * <http://stateless.co/hal_specification.html>

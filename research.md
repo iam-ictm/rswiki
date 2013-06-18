@@ -9,6 +9,7 @@ REST, hypermedia
 * In RDF
     * <http://restdesc.org> / <http://restdesc.org/about/descriptions>
     * <http://www.markus-lanthaler.com/hydra/spec/latest/core/>
+    * <http://www.w3.org/community/hydra/>
     * <https://github.com/fusepool/fusepool-ecs/blob/master/ontologies/src/main/resources/eu/fusepool/ecs/ontologies/ecs.ttl>
     * <https://en.wikipedia.org/wiki/Link_relation>
     * <http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven>

@@ -20,17 +20,17 @@
     "static":  "./static",
     "scripts": "./scripts"
   },
-  "engines" : { "node" : ">=0.8.18" },
+  "engines" : { "node" : ">=0.10.13" },
   "dependencies": {
-    "pagedown":    ">=1.0.0",
-    "domo":        ">=0.5.8",
-    "mimeparse":   ">=0.1.4",
-    "bunyan":      ">=0.18.2",
-    "restify":     ">=2.2.1",
-    "request":     ">=2.16.2",
-    "nconf":       ">=0.6.7",
-    "mocha":       ">=1.8.2",
-    "gitty":       ">=1.1.6"
+    "pagedown":    "~1.0.0",
+    "domo":        "~0.5.8",
+    "mimeparse":   "~0.1.4",
+    "bunyan":      "~0.18.2",
+    "restify":     "~2.2.1",
+    "request":     "~2.16.2",
+    "nconf":       "~0.6.7",
+    "mocha":       "~1.8.2",
+    "gitty":       "~1.2.4"
   },
   "scripts": {
     "start": "node server.js",

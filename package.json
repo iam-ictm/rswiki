@@ -39,13 +39,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@semweb.bfh.ch:wiki-code"
+    "url": "https://github.com/iam-ictm/rswiki.git"
   },
   "author": {
     "name":  "Pascal Mainini",
     "email": "pascal.mainini@bfh.ch",
-    "url":   "http://forschung.ti.bfh.ch/de/institute/institute_for_ict_based_management"
+    "url":   "http://mainini.ch"
   },
-  "license": "Proprietary, see LICENSE",
+  "license": "MIT",
   "readmeFilename": "README.md"
 }
